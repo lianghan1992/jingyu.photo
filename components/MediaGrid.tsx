@@ -22,7 +22,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ items, onItemClick, onToggleFavor
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-1 sm:gap-2">
             {items[date].map((item) => (
               <MediaItemCard
-                key={item.id}
+                key={item.uid}
                 item={item}
                 onClick={() => onItemClick(item)}
                 onToggleFavorite={onToggleFavorite}

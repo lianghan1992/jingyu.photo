@@ -5,13 +5,13 @@ import { PlayIcon, HeartIcon, HeartSolidIcon } from './Icons';
 interface MediaItemCardProps {
   item: MediaItem;
   onClick: () => void;
-  onToggleFavorite: (id: string) => void;
+  onToggleFavorite: (uid: string) => void;
 }
 
 const MediaItemCard: React.FC<MediaItemCardProps> = ({ item, onClick, onToggleFavorite }) => {
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent modal from opening
-    onToggleFavorite(item.id);
+    onToggleFavorite(item.uid);
   };
 
   return (
