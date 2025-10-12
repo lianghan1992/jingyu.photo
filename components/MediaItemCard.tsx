@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { MediaItem } from '../types';
 import { PlayIcon, HeartIcon, HeartSolidIcon } from './Icons';
@@ -21,12 +22,14 @@ const MediaItemCard: React.FC<MediaItemCardProps> = ({ item, onClick, onToggleFa
       role="button"
       aria-label={`View ${item.name}`}
     >
-      <img
-        src={item.thumbnailUrl}
-        alt={item.name}
-        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-        loading="lazy"
-      />
+      {item.thumbnailUrl && (
+        <img
+          src={item.thumbnailUrl}
+          alt={item.name}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          loading="lazy"
+        />
+      )}
       
       {item.type === 'video' && (
          <div className="absolute bottom-1.5 left-1.5">

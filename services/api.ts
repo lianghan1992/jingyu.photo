@@ -31,6 +31,9 @@ export async function fetchMedia(params: FetchMediaParams): Promise<FetchMediaRe
 
   const response = await fetch(`${API_BASE}/media?${query.toString()}`);
   if (!response.ok) {
+    if (response.status === 503) {
+      throw new Error('服务暂时不可用 (503)。请检查后端服务是否正在运行。');
+    }
     throw new Error('Failed to fetch media');
   }
   const data: FetchMediaResponse = await response.json();
@@ -44,6 +47,9 @@ export async function toggleFavorite(uid: string, isFavorite: boolean): Promise<
   
   const response = await fetch(url, { method });
   if (!response.ok && response.status !== 204) {
+    if (response.status === 503) {
+      throw new Error('服务暂时不可用 (503)。');
+    }
     throw new Error(`Failed to ${isFavorite ? 'remove from' : 'add to'} favorites`);
   }
   return response;
@@ -52,6 +58,9 @@ export async function toggleFavorite(uid: string, isFavorite: boolean): Promise<
 export async function fetchFolders(): Promise<string[]> {
     const response = await fetch(`${API_BASE}/folders`);
     if(!response.ok) {
+        if (response.status === 503) {
+          throw new Error('服务暂时不可用 (503)。');
+        }
         throw new Error('Failed to fetch folders');
     }
     return response.json();

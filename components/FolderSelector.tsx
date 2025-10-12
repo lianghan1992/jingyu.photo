@@ -13,6 +13,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, activeFolder, setActiveFolder }) => {
   const [folders, setFolders] = useState<string[]>([]);
+  const [folderError, setFolderError] = useState<string | null>(null);
   
   const navItems = [
     { key: 'all' as ViewType, label: '图库', icon: LibraryIcon },
@@ -23,9 +24,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, activeFold
   useEffect(() => {
     const loadFolders = async () => {
       try {
+        setFolderError(null);
         const fetchedFolders = await fetchFolders();
         setFolders(fetchedFolders);
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "无法加载文件夹";
+        setFolderError(errorMessage);
         console.error("Failed to fetch folders:", error);
       }
     };
@@ -71,28 +75,32 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, activeFold
           ))}
         </ul>
       </nav>
-      {folders.length > 0 && (
+      {(folders.length > 0 || folderError) && (
          <div className="mt-6 pt-6 border-t border-gray-200/80">
           <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">文件夹</h3>
-          <nav>
-            <ul>
-              {folders.map(folder => (
-                <li key={folder}>
-                  <button
-                    onClick={() => handleFolderClick(folder)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium rounded-lg transition-colors ${
-                      activeFolder === folder
-                        ? 'bg-blue-500 text-white shadow'
-                        : 'text-gray-600 hover:bg-gray-200/60'
-                    }`}
-                  >
-                    <FolderIcon className="w-5 h-5 flex-shrink-0" />
-                    <span className="truncate">{folder.split(/[\\/]/).pop()}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          {folderError ? (
+            <p className="px-3 text-sm text-red-500">{folderError}</p>
+          ) : (
+            <nav>
+              <ul>
+                {folders.map(folder => (
+                  <li key={folder}>
+                    <button
+                      onClick={() => handleFolderClick(folder)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium rounded-lg transition-colors ${
+                        activeFolder === folder
+                          ? 'bg-blue-500 text-white shadow'
+                          : 'text-gray-600 hover:bg-gray-200/60'
+                      }`}
+                    >
+                      <FolderIcon className="w-5 h-5 flex-shrink-0" />
+                      <span className="truncate">{folder.split(/[\\/]/).pop()}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
         </div>
       )}
     </aside>
