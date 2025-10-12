@@ -13,17 +13,20 @@
     -   [GET /api/media](#get-apimedia)
     -   [POST /api/media/{uid}/favorite](#post-apimediauidfavorite)
     -   [DELETE /api/media/{uid}/favorite](#delete-apimediauidfavorite)
-    -   [GET /api/media/{uid}/download](#get-apimediauiddownload)
 2.  [数据源与分类](#2-数据源与分类)
     -   [GET /api/folders](#get-apifolders)
 3.  [后台任务与自动化](#3-后台任务与自动化)
+    -   [POST /api/scan](#post-apiscan)
     -   [GET /api/scan/status](#get-apiscanstatus)
+    -   [POST /api/ai/process](#post-apiaiprocess)
     -   [GET /api/ai/status](#get-apiaistatus)
 4.  [静态资源](#4-静态资源)
     -   [GET /thumbnails/{uid}.jpg](#get-thumbnailsuidjpg)
     -   [GET /media_{index}/{relative_path}](#get-media_indexrelative_path)
 5.  [数据模型](#5-数据模型)
     -   [MediaItem](#mediaitem)
+    -   [Metadata (Image)](#metadata-image)
+    -   [Metadata (Video)](#metadata-video)
 6.  [前端集成指南](#6-前端集成指南)
 
 ---
@@ -55,7 +58,7 @@
 {
   "total": 125,
   "page": 1,
-  "pageSize": 2,
+  "pageSize": 1,
   "items": [
     {
       "uid": "a8c3f1b7e4d9a2c1b3e4f5a6b7c8d9e0",
@@ -65,19 +68,19 @@
       "isFavorite": true,
       "url": "/media_0/2023/Vacation/IMG_20231001.JPG",
       "thumbnailUrl": "/thumbnails/a8c3f1b7e4d9a2c1b3e4f5a6b7c8d9e0.jpg",
+      "downloadUrl": "/api/media/a8c3f1b7e4d9a2c1b3e4f5a6b7c8d9e0/download",
       "aiTitle": "夕阳下的金色沙滩，海浪轻拂",
-      "aiTags": ["海滩", "日落", "海洋", "自然风光", "度假"]
-    },
-    {
-      "uid": "f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5",
-      "name": "VID_20230928.MP4",
-      "date": "2023-09-28T11:00:00",
-      "type": "video",
-      "isFavorite": false,
-      "url": "/media_0/2023/Family/VID_20230928.MP4",
-      "thumbnailUrl": "/thumbnails/f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5.jpg",
-      "aiTitle": null,
-      "aiTags": null
+      "aiTags": ["海滩", "日落", "海洋"],
+      "metadata": {
+          "width": 4032,
+          "height": 3024,
+          "cameraMake": "Apple",
+          "cameraModel": "iPhone 13 Pro",
+          "focalLength": "5.7mm",
+          "aperture": "f/1.5",
+          "shutterSpeed": "1/120s",
+          "iso": 50
+      }
     }
   ]
 }
@@ -116,27 +119,6 @@
 **成功响应 (204 No Content)**:
 
 - 响应体为空。
-
-**失败响应 (404 Not Found)**:
-
-```json
-{
-  "detail": "Media item not found"
-}
-```
-
-### GET /api/media/{uid}/download
-
-下载指定媒体项的原始文件。
-
-- **方法**: `GET`
-- **URL**: `/api/media/{uid}/download`
-- **路径参数**:
-  - `uid` (string, required): 媒体项的唯一ID。
-
-**成功响应 (200 OK)**:
-
-- 响应体为原始文件流。浏览器将触发文件下载。
 
 **失败响应 (404 Not Found)**:
 
@@ -291,19 +273,46 @@
 
 ### MediaItem
 
-`GET /api/media` 接口返回的媒体项对象结构。
+`GET /api/media` 接口返回的媒体项对象结构。所有字段（除特别说明外）均为必填项。
 
 | 字段 | 类型 | 描述 |
 | :--- | :--- | :--- |
 | `uid` | string | 媒体项的唯一标识符。 |
 | `name` | string | 原始文件名。 |
-| `date` | string | 媒体的拍摄日期 (ISO 8601 格式)。 |
+| `date` | string | **保证有效**。媒体的拍摄日期 (ISO 8601 格式)。如果EXIF信息缺失，会使用文件创建或修改日期作为备用。 |
 | `type` | string | 媒体类型，`"image"` 或 `"video"`。 |
 | `isFavorite` | boolean | 是否为收藏项。 |
-| `url` | string | 用于前端预览的原始文件URL。注意：URL现在包含一个索引，例如 `/media_0/path/to/file.jpg`。 |
-| `thumbnailUrl` | string | 缩略图的URL。 |
+| `url` | string | **保证有效**。用于前端预览的原始文件URL。 |
+| `thumbnailUrl` | string | **保证有效**。缩略图的URL。 |
+| `downloadUrl` | string | **保证有效**。用于下载原始文件的完整URL。前端应直接使用此URL，而不是自行拼接。 |
 | `aiTitle` | string (nullable) | AI生成的标题。 |
 | `aiTags` | array[string] (nullable) | AI生成的标签列表。 |
+| `metadata` | object (nullable) | 包含媒体元数据的对象。其结构取决于 `type` 字段。 |
+
+### Metadata (Image)
+
+当 `type` 为 `"image"` 时，`metadata` 对象的结构：
+
+| 字段 | 类型 | 描述 |
+| :--- | :--- | :--- |
+| `width` | integer | 图片宽度（像素）。 |
+| `height` | integer | 图片高度（像素）。 |
+| `cameraMake` | string (nullable) | 相机制造商（例如 "Apple"）。 |
+| `cameraModel` | string (nullable) | 相机型号（例如 "iPhone 13 Pro"）。 |
+| `focalLength` | string (nullable) | 焦距（例如 "5.7mm"）。 |
+| `aperture` | string (nullable) | 光圈值（例如 "f/1.5"）。 |
+| `shutterSpeed` | string (nullable) | 快门速度（例如 "1/120s"）。 |
+| `iso` | integer (nullable) | ISO感光度。 |
+
+### Metadata (Video)
+
+当 `type` 为 `"video"` 时，`metadata` 对象的结构：
+
+| 字段 | 类型 | 描述 |
+| :--- | :--- | :--- |
+| `width` | integer | 视频宽度（像素）。 |
+| `height` | integer | 视频高度（像素）。 |
+| `duration` | float | 视频时长（秒）。 |
 
 ---
 
@@ -317,13 +326,9 @@
 
 为了在前端展示这些新发现的媒体，您只需定期（例如，每隔几秒或在用户刷新页面时）调用 `GET /api/media` 接口。后端将返回所有已处理的媒体项，包括最新添加的。
 
-**媒体文件URL结构**:
+**URL的稳定性**:
 
-请注意，由于后端现在支持多个 `MEDIA_LIBRARY_PATH`，原始媒体文件的URL结构已更新。`MediaItem` 对象中的 `url` 字段将包含一个索引，例如 `/media_0/path/to/file.jpg`。这个索引对应于 `.env` 文件中 `MEDIA_LIBRARY_PATH` 变量里配置的路径顺序（从0开始）。前端在构建媒体资源的完整URL时，应直接使用 `MediaItem.url` 字段的值。
-
-**缩略图URL**:
-
-缩略图的URL结构保持不变，仍为 `/thumbnails/{uid}.jpg`。
+`MediaItem` 对象中的 `url`, `thumbnailUrl`, 和 `downloadUrl` 字段现在由后端完全提供，并保证其有效性。前端应始终直接使用这些字段的值，避免自行拼接URL，以实现前后端的解耦。
 
 **实时更新**:
 

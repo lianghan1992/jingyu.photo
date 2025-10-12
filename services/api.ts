@@ -33,14 +33,9 @@ export async function fetchMedia(params: FetchMediaParams): Promise<FetchMediaRe
   if (!response.ok) {
     throw new Error('Failed to fetch media');
   }
-  const data = await response.json();
-
-  const mappedItems = data.items.map((item: any) => ({
-    ...item,
-    originalUrl: `${API_BASE}/media/${item.uid}/download`
-  }));
+  const data: FetchMediaResponse = await response.json();
   
-  return { ...data, items: mappedItems };
+  return data;
 }
 
 export async function toggleFavorite(uid: string, isFavorite: boolean): Promise<Response> {

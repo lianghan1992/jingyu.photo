@@ -1,3 +1,20 @@
+export interface ImageMetadata {
+  width?: number;
+  height?: number;
+  cameraMake?: string | null;
+  cameraModel?: string | null;
+  focalLength?: string | null;
+  aperture?: string | null;
+  shutterSpeed?: string | null;
+  iso?: number | null;
+}
+
+export interface VideoMetadata {
+  width?: number;
+  height?: number;
+  duration?: number; // in seconds
+}
+
 export interface MediaItem {
   uid: string;
   name: string;
@@ -5,8 +22,9 @@ export interface MediaItem {
   type: 'image' | 'video';
   url: string;
   thumbnailUrl: string;
-  originalUrl?: string;
+  downloadUrl: string;
   aiTitle: string | null;
   aiTags: string[] | null;
   isFavorite: boolean;
+  metadata: (ImageMetadata | VideoMetadata) | null;
 }

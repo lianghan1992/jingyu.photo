@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import type { MediaItem } from '../types';
+import type { MediaItem, ImageMetadata, VideoMetadata } from '../types';
 import { CloseIcon, DownloadIcon, InfoIcon, TagIcon, HeartIcon, HeartSolidIcon, ChevronLeftIcon, ChevronRightIcon } from './Icons';
 
 interface ModalProps {
@@ -9,6 +9,60 @@ interface ModalProps {
   onToggleFavorite: (uid: string) => void;
   onNavigate: (direction: 'prev' | 'next') => void;
 }
+
+const formatDuration = (seconds: number): string => {
+  if (isNaN(seconds) || seconds < 0) return '00:00';
+  const totalSeconds = Math.round(seconds);
+  const hrs = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  
+  const pad = (num: number) => num.toString().padStart(2, '0');
+
+  if (hrs > 0) {
+    return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+  }
+  return `${pad(mins)}:${pad(secs)}`;
+};
+
+const MetadataDisplay: React.FC<{ item: MediaItem }> = ({ item }) => {
+  if (!item.metadata) return null;
+
+  const metadata = item.metadata;
+  const infoItems: { label: string, value: React.ReactNode }[] = [];
+
+  if (item.type === 'image') {
+    const imgMeta = metadata as ImageMetadata;
+    if (imgMeta.cameraModel) infoItems.push({ label: '相机', value: `${imgMeta.cameraMake || ''} ${imgMeta.cameraModel}`.trim() });
+    const photoDetails = [imgMeta.focalLength, imgMeta.aperture, imgMeta.shutterSpeed, imgMeta.iso ? `ISO ${imgMeta.iso}` : null].filter(Boolean).join(' ');
+    if (photoDetails) infoItems.push({ label: '参数', value: photoDetails });
+    if (imgMeta.width && imgMeta.height) infoItems.push({ label: '尺寸', value: `${imgMeta.width} x ${imgMeta.height}` });
+
+  } else if (item.type === 'video') {
+    const vidMeta = metadata as VideoMetadata;
+    if (vidMeta.duration) infoItems.push({ label: '时长', value: formatDuration(vidMeta.duration) });
+    if (vidMeta.width && vidMeta.height) infoItems.push({ label: '分辨率', value: `${vidMeta.width} x ${vidMeta.height}` });
+  }
+
+  if (infoItems.length === 0) return null;
+
+  return (
+    <div>
+      <h3 className="flex items-center gap-2 text-sm font-semibold mb-3 text-zinc-500 uppercase tracking-wider">
+        <InfoIcon className="w-5 h-5"/> 详细信息
+      </h3>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        {infoItems.map(({ label, value }) => (
+          <React.Fragment key={label}>
+            <div className="font-medium text-zinc-600">{label}</div>
+            <div className="text-zinc-800 truncate">{value}</div>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
   useEffect(() => {
@@ -51,7 +105,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                 {item.isFavorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5 text-zinc-500" />}
                 <span className="font-semibold text-sm">{item.isFavorite ? '已收藏' : '收藏'}</span>
               </button>
-              <a href={item.originalUrl} download={item.name} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors text-zinc-700">
+              <a href={item.downloadUrl} download={item.name} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors text-zinc-700">
                 <DownloadIcon className="w-5 h-5 text-zinc-500" />
                 <span className="font-semibold text-sm">下载</span>
               </a>
@@ -59,13 +113,15 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
 
             <div className="space-y-6">
                 {item.aiTags && item.aiTags.length > 0 && (
-                  <div>
-                      <h3 className="flex items-center gap-2 text-sm font-semibold mb-2 text-zinc-500 uppercase tracking-wider"><TagIcon className="w-5 h-5"/> AI 标签</h3>
+                  <div className="pb-6 border-b border-zinc-200">
+                      <h3 className="flex items-center gap-2 text-sm font-semibold mb-3 text-zinc-500 uppercase tracking-wider"><TagIcon className="w-5 h-5"/> AI 标签</h3>
                       <div className="flex flex-wrap gap-2">
                         {item.aiTags.map(tag => <span key={tag} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-full">{tag}</span>)}
                       </div>
                   </div>
                 )}
+                
+                <MetadataDisplay item={item} />
             </div>
 
           </div>
