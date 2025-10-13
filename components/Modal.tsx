@@ -21,6 +21,18 @@ interface ModalProps {
   onNavigate: (direction: 'prev' | 'next') => void;
 }
 
+// Helper component for cleaner metadata display
+const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => {
+  if (!value) return null;
+  return (
+    <div className="flex justify-between">
+      <span className="text-white/60">{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+};
+
+
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -189,22 +201,12 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                             详细信息
                         </h3>
                         <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-white/60">文件名</span> <span>{item.fileName}</span></div>
-                            {metadata.width && metadata.height && (
-                               <div className="flex justify-between"><span className="text-white/60">分辨率</span> <span>{metadata.width} x {metadata.height}</span></div>
-                            )}
-                            {isImage && imageMeta?.cameraMake && (
-                                <div className="flex justify-between"><span className="text-white/60">相机</span> <span>{imageMeta.cameraMake} {imageMeta.cameraModel}</span></div>
-                            )}
-                            {isImage && imageMeta?.aperture && imageMeta?.shutterSpeed && imageMeta?.iso && (
-                                <div className="flex justify-between"><span className="text-white/60">曝光</span> <span>{`ƒ/${imageMeta.aperture} • ${imageMeta.shutterSpeed}s • ISO ${imageMeta.iso}`}</span></div>
-                            )}
-                            {!isImage && videoMeta?.duration && (
-                                <div className="flex justify-between"><span className="text-white/60">时长</span> <span>{formatDuration(videoMeta.duration)}</span></div>
-                            )}
-                             {!isImage && videoMeta?.fps && (
-                                <div className="flex justify-between"><span className="text-white/60">帧率</span> <span>{videoMeta.fps.toFixed(2)} fps</span></div>
-                            )}
+                            <MetadataRow label="文件名" value={item.fileName} />
+                            <MetadataRow label="分辨率" value={metadata.width && metadata.height ? `${metadata.width} x ${metadata.height}` : null} />
+                            {isImage && <MetadataRow label="相机" value={imageMeta?.cameraMake ? `${imageMeta.cameraMake} ${imageMeta.cameraModel || ''}`.trim() : null} />}
+                            {isImage && <MetadataRow label="曝光" value={imageMeta?.aperture && imageMeta?.shutterSpeed && imageMeta?.iso ? `ƒ/${imageMeta.aperture} • ${imageMeta.shutterSpeed}s • ISO ${imageMeta.iso}` : null} />}
+                            {!isImage && <MetadataRow label="时长" value={formatDuration(videoMeta?.duration)} />}
+                            {!isImage && <MetadataRow label="帧率" value={videoMeta?.fps ? `${videoMeta.fps.toFixed(2)} fps` : null} />}
                         </div>
                     </div>
                 )}

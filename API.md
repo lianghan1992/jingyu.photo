@@ -14,14 +14,14 @@
 
 ### MediaItem
 
-代表媒体库中的一个项目（图片或视频）。
+代表媒体库中的一个项目（图片或视频）。下表中的字段名即为 API 响应中的实际字段名。
 
 | 字段名           | 类型          | 描述                                       |
 | ---------------- | ------------- | ------------------------------------------ |
 | `uid`            | String        | 媒体项的唯一标识符 (MD5 of file_path)。    |
-| `name`           | String        | 文件名。                                   |
-| `date`           | String (ISO)  | 媒体的创建日期 (EXIF或文件创建时间)。      |
-| `type`           | String        | 媒体类型 (`image` 或 `video`)。            |
+| `fileName`       | String        | 文件名。                                   |
+| `mediaCreatedAt` | String (ISO)  | 媒体的创建日期 (EXIF或文件创建时间)。      |
+| `fileType`       | String        | 媒体类型 (`image` 或 `video`)。            |
 | `isFavorite`     | Boolean       | 是否已收藏。                               |
 | `url`            | String        | 访问原始媒体文件的代理URL。                |
 | `thumbnailUrl`   | String        | 访问缩略图的URL (不含尺寸参数)。           |
@@ -29,7 +29,7 @@
 | `hlsPlaybackUrl` | String \| null | (仅对视频) HLS 播放列表的 URL。如果为 `null`，则不支持 HLS。 |
 | `aiTitle`        | String \| null | (可选) AI 生成的标题。                     |
 | `aiTags`         | Array[String] | (可选) AI 生成的标签列表。                 |
-| `metadata`       | Object        | (可选) 包含媒体元数据的对象 (如宽高、相机信息等)。 |
+| `mediaMetadata`  | Object        | (可选) 包含媒体元数据的对象 (如宽高、相机信息等)。 |
 
 ---
 
@@ -41,11 +41,6 @@
 
 - **Method:** `GET`
 - **Path:** `/api/status`
-
-**Curl 示例:**
-```bash
-curl -i http://localhost:24116/api/status
-```
 
 **响应 (200 OK):**
 ```json
@@ -62,11 +57,6 @@ curl -i http://localhost:24116/api/status
 - **Method:** `GET`
 - **Path:** `/api/stats`
 
-**Curl 示例:**
-```bash
-curl -i http://localhost:24116/api/stats
-```
-
 **响应 (200 OK):**
 ```json
 {
@@ -82,12 +72,6 @@ curl -i http://localhost:24116/api/stats
 
 - **Method:** `GET`
 - **Path:** `/api/media`
-
-**Curl 示例:**
-```bash
-# 获取第一页，每页20个最新的图片
-curl -i "http://localhost:24116/api/media?pageSize=20&sort=newest&type=image"
-```
 
 **查询参数:**
 
@@ -110,7 +94,9 @@ curl -i "http://localhost:24116/api/media?pageSize=20&sort=newest&type=image"
   "items": [
     {
       "uid": "db992ebc023c7695322e87979cf46bf9",
-      "name": "VID_20250419_184348.mp4",
+      "fileName": "VID_20250419_184348.mp4",
+      "mediaCreatedAt": "2025-04-19T18:43:48Z",
+      "fileType": "video",
       "hlsPlaybackUrl": "/api/streams/db992ebc023c7695322e87979cf46bf9/master.m3u8",
       // ... 其他字段
     }
@@ -168,12 +154,6 @@ curl -i "http://localhost:24116/api/media?pageSize=20&sort=newest&type=image"
 | --- | --- | --- |
 | `uid` | String | 视频媒体项的唯一标识符。 |
 | `filename` | String | 请求的文件名，通常是 `master.m3u8` (主播放列表) 或视频切片 (如 `1080p_001.ts`)。 |
-
-**Curl 示例:**
-```bash
-# 请求主播放列表
-curl -i http://localhost:24116/api/streams/db992ebc023c7695322e87979cf46bf9/master.m3u8
-```
 
 **响应:**
 - **200 OK:** 成功时，返回请求的文件内容。
