@@ -171,8 +171,24 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     let objectUrl: string | null = null;
     let hlsInstance: any | null = null;
 
+    const handleCanPlay = () => {
+      if (!isCancelled) {
+        const playPromise = videoElement.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            if (err.name !== 'AbortError') {
+              console.warn("Video autoplay was prevented.", err);
+            }
+          });
+        }
+      }
+    };
+
+    videoElement.addEventListener('canplay', handleCanPlay);
+
     const cleanup = () => {
       isCancelled = true;
+      videoElement.removeEventListener('canplay', handleCanPlay);
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       if (hlsInstance) hlsInstance.destroy();
     };
@@ -190,24 +206,16 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
           });
           hlsInstance.loadSource(item.hlsPlaybackUrl);
           hlsInstance.attachMedia(videoElement);
-          hlsInstance.on('hlsManifestParsed', () => {
-            if (!isCancelled) {
-              videoElement.play().catch(e => {
-                if(e.name !== 'AbortError') console.warn("HLS autoplay was prevented.", e)
-              });
-            }
-          });
           hlsInstance.on('hlsError', (event: any, data: any) => {
             console.error('HLS Error:', data);
-            if (!isCancelled) setError(true);
+            if (data.fatal && !isCancelled) {
+                setError(true);
+            }
           });
         } else if (item.url) {
           objectUrl = await fetchAuthenticatedBlobUrl(item.url);
           if (!isCancelled) {
             videoElement.src = objectUrl;
-            videoElement.play().catch(e => {
-              if(e.name !== 'AbortError') console.warn("Direct video autoplay was prevented.", e)
-            });
           }
         }
       } catch (err) {
