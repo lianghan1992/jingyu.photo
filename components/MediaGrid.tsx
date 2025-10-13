@@ -1,5 +1,6 @@
 
 
+
 import React from 'react';
 import type { MediaItem } from '../types';
 // Fix: Corrected import path for MediaItemCard component.
@@ -14,11 +15,12 @@ interface MediaGridProps {
 const MediaGrid: React.FC<MediaGridProps> = ({ items, onItemClick, onToggleFavorite }) => {
   return (
     <div className="space-y-12">
-      {Object.entries(items).map(([date, mediaArray]) => (
+      {/* Fix: Changed from Object.entries to Object.keys to resolve a TypeScript inference issue where the media array was being typed as 'unknown'. */}
+      {Object.keys(items).map((date) => (
         <div key={date}>
           <h2 className="text-2xl font-bold text-gray-900 mb-4 px-1">{date}</h2>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-1 sm:gap-2">
-            {mediaArray.map((item) => (
+            {items[date].map((item) => (
               <MediaItemCard
                 key={item.uid}
                 item={item}

@@ -4,12 +4,16 @@ import Header from './components/Header';
 import Sidebar, { ViewType } from './components/FolderSelector';
 import MediaGrid from './components/MediaGrid';
 import Modal from './components/Modal';
+import AuthGate from './components/AuthGate';
 import { TimeView } from './components/TimeSelector';
 import { fetchMedia, toggleFavorite } from './services/api';
 
 const PAGE_SIZE = 42; // 7 columns * 6 rows
+const STORAGE_KEY = 'jingyu-today-auth-token';
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeView, setActiveView] = useState<ViewType>('all');
@@ -25,6 +29,17 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const scrollContainerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    try {
+        const token = localStorage.getItem(STORAGE_KEY);
+        if (token) {
+            setIsAuthenticated(true);
+        }
+    } catch (e) {
+        console.error("Could not access localStorage. Private browsing?", e);
+    }
+  }, []);
 
   const loadMedia = useCallback(async (reset = false) => {
     if (isLoading || (!hasMore && !reset)) return;
@@ -48,7 +63,8 @@ const App: React.FC = () => {
       setPage(currentPage + 1);
       setHasMore(response.items.length > 0 && response.items.length === PAGE_SIZE);
     } catch (err) {
-      setError('无法加载媒体文件。请稍后重试。');
+      const errorMessage = err instanceof Error ? err.message : '无法加载媒体文件。请稍后重试。';
+      setError(errorMessage);
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -56,6 +72,7 @@ const App: React.FC = () => {
   }, [isLoading, hasMore, page, activeSort, activeView, favoritesOnly, searchQuery, activeFolder]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     const freshLoad = async () => {
       // Wait for debouncing search query
       if (searchQuery) {
@@ -67,9 +84,10 @@ const App: React.FC = () => {
       await loadMedia(true);
     };
     freshLoad();
-  }, [searchQuery, activeView, activeSort, favoritesOnly, activeFolder]);
+  }, [searchQuery, activeView, activeSort, favoritesOnly, activeFolder, isAuthenticated]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     const container = scrollContainerRef.current;
     const handleScroll = () => {
         if (container && hasMore && !isLoading) {
@@ -81,7 +99,7 @@ const App: React.FC = () => {
     };
     container?.addEventListener('scroll', handleScroll);
     return () => container?.removeEventListener('scroll', handleScroll);
-  }, [hasMore, isLoading, loadMedia]);
+  }, [hasMore, isLoading, loadMedia, isAuthenticated]);
   
   const groupedMedia = useMemo(() => {
     let options: Intl.DateTimeFormatOptions;
@@ -153,6 +171,10 @@ const App: React.FC = () => {
   };
 
   const selectedItem = selectedItemIndex !== null ? mediaItems[selectedItemIndex] : null;
+  
+  if (!isAuthenticated) {
+    return <AuthGate onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="flex bg-zinc-50 min-h-screen text-zinc-800">
@@ -182,7 +204,7 @@ const App: React.FC = () => {
                       onToggleFavorite={handleToggleFavorite} 
                   />
               ) : (
-                !isLoading && (
+                !isLoading && !error && (
                   <div className="text-center py-20">
                       <p className="text-gray-500 text-lg">没有找到匹配的项目。</p>
                   </div>

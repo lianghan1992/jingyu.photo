@@ -1,6 +1,50 @@
 import type { MediaItem } from '../types';
 
 const API_BASE = '/api';
+const STORAGE_KEY = 'jingyu-today-auth-token';
+
+// A helper function to handle API requests with authorization and error handling.
+async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(options.headers || {});
+  const token = localStorage.getItem(STORAGE_KEY);
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (!response.ok) {
+    // If the token is invalid or expired, the server should return 401.
+    if (response.status === 401) {
+      localStorage.removeItem(STORAGE_KEY);
+      // Force a reload to show the login gate.
+      window.location.reload();
+      // Throw an error to stop the current execution flow.
+      throw new Error('认证失败，请重新登录。');
+    }
+    // Handle other errors gracefully.
+    if (response.status === 503) {
+      throw new Error('服务暂时不可用 (503)。请检查后端服务是否正在运行。');
+    }
+    // Try to parse error from backend
+    try {
+        const errorData = await response.json();
+        if (errorData.detail?.error?.message) {
+            throw new Error(errorData.detail.error.message);
+        } else if (typeof errorData.detail === 'string') {
+            throw new Error(errorData.detail);
+        }
+    } catch (e) {
+      // If parsing fails or it's not the expected format, throw a generic error.
+      if (e instanceof Error) throw e;
+      throw new Error(`请求失败，状态码: ${response.status}`);
+    }
+  }
+
+  return response;
+}
+
 
 interface FetchMediaParams {
   page?: number;
@@ -19,6 +63,29 @@ interface FetchMediaResponse {
   items: MediaItem[];
 }
 
+export async function authenticate(password: string): Promise<string> {
+    const response = await fetch(`${API_BASE}/auth/token`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+    });
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error('口令不正确');
+        }
+        throw new Error('认证时发生错误');
+    }
+    
+    const data = await response.json();
+    if (!data.token) {
+        throw new Error('未能从服务器获取Token');
+    }
+    return data.token;
+}
+
 export async function fetchMedia(params: FetchMediaParams): Promise<FetchMediaResponse> {
   const query = new URLSearchParams();
   if (params.page) query.append('page', params.page.toString());
@@ -29,13 +96,7 @@ export async function fetchMedia(params: FetchMediaParams): Promise<FetchMediaRe
   if (params.search) query.append('search', params.search);
   if (params.folder) query.append('folder', params.folder);
 
-  const response = await fetch(`${API_BASE}/media?${query.toString()}`);
-  if (!response.ok) {
-    if (response.status === 503) {
-      throw new Error('服务暂时不可用 (503)。请检查后端服务是否正在运行。');
-    }
-    throw new Error('Failed to fetch media');
-  }
+  const response = await apiFetch(`${API_BASE}/media?${query.toString()}`);
   const data: FetchMediaResponse = await response.json();
   
   return data;
@@ -45,59 +106,24 @@ export async function toggleFavorite(uid: string, isFavorite: boolean): Promise<
   const url = `${API_BASE}/media/${uid}/favorite`;
   const method = isFavorite ? 'DELETE' : 'POST';
   
-  const response = await fetch(url, { method });
-  if (!response.ok && response.status !== 204) {
-    if (response.status === 503) {
-      throw new Error('服务暂时不可用 (503)。');
-    }
-    throw new Error(`Failed to ${isFavorite ? 'remove from' : 'add to'} favorites`);
-  }
+  const response = await apiFetch(url, { method });
   return response;
 }
 
 export async function fetchFolders(): Promise<string[]> {
-    const response = await fetch(`${API_BASE}/folders`);
-    if(!response.ok) {
-        if (response.status === 503) {
-          throw new Error('服务暂时不可用 (503)。');
-        }
-        throw new Error('Failed to fetch folders');
-    }
+    const response = await apiFetch(`${API_BASE}/folders`);
     return response.json();
 }
 
 export async function triggerAiProcessing(): Promise<{ message: string }> {
-    const response = await fetch(`${API_BASE}/ai/process`, { method: 'POST' });
-
-    if (!response.ok) {
-        if (response.status === 503) {
-            throw new Error('服务暂时不可用 (503)。');
-        }
-        
-        let errorMessage = `启动AI处理任务失败 (HTTP ${response.status})`;
-
-        try {
-            const errorData = await response.json();
-            // Per API.md, error messages can be in `detail.error.message` or `detail`.
-            if (errorData.detail?.error?.message) {
-                errorMessage = errorData.detail.error.message;
-            } else if (typeof errorData.detail === 'string') {
-                errorMessage = errorData.detail;
-            }
-        } catch (jsonError) {
-            // Ignore JSON parsing error, the default HTTP status message is sufficient.
-        }
-        throw new Error(errorMessage);
-    }
+    const response = await apiFetch(`${API_BASE}/ai/process`, { method: 'POST' });
     
     // On success (e.g., 202 Accepted), the API doc does not guarantee a response body.
-    // The UI code expects an object with a `message` property.
     try {
         const data = await response.json();
-        // Ensure a message is returned to satisfy the UI.
         return { message: data.message || 'AI处理任务已在后台启动。' };
     } catch (e) {
-        // If body is empty or not JSON, return a default success message to prevent UI crash.
+        // If body is empty or not JSON, return a default success message.
         return { message: 'AI处理任务已在后台启动。' };
     }
 }
