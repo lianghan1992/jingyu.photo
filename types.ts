@@ -13,6 +13,7 @@ export interface VideoMetadata {
   width?: number;
   height?: number;
   duration?: number; // in seconds
+  fps?: number;
 }
 
 export interface MediaItem {
