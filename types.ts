@@ -19,9 +19,9 @@ export interface VideoMetadata {
 
 export interface MediaItem {
   uid: string;
-  name: string;
-  date: string; // ISO date string
-  type: 'image' | 'video';
+  fileName: string;
+  mediaCreatedAt: string; // ISO date string
+  fileType: 'image' | 'video';
   url: string;
   thumbnailUrl: string;
   downloadUrl: string;
@@ -29,5 +29,5 @@ export interface MediaItem {
   aiTitle: string | null;
   aiTags: string[] | null;
   isFavorite: boolean;
-  metadata: (ImageMetadata | VideoMetadata) | null;
+  mediaMetadata: (ImageMetadata | VideoMetadata) | null;
 }

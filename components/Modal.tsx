@@ -43,7 +43,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
   }, [onClose, onNavigate]);
   
   useEffect(() => {
-    if (item.type !== 'video' || !videoRef.current) {
+    if (item.fileType !== 'video' || !videoRef.current) {
       return;
     }
 
@@ -79,8 +79,8 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     onToggleFavorite(item.uid);
   };
   
-  const formattedDate = item.date
-    ? new Date(item.date.replace(' ', 'T')).toLocaleString('zh-CN', {
+  const formattedDate = item.mediaCreatedAt
+    ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleString('zh-CN', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -89,8 +89,8 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       })
     : '未知日期';
 
-  const metadata = item.metadata;
-  const isImage = item.type === 'image';
+  const metadata = item.mediaMetadata;
+  const isImage = item.fileType === 'image';
   const imageMeta = isImage ? (metadata as ImageMetadata) : null;
   const videoMeta = !isImage ? (metadata as VideoMetadata) : null;
   
@@ -108,7 +108,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       onClick={(e) => { if(e.target === modalRef.current) onClose() }}
       role="dialog"
       aria-modal="true"
-      aria-label={item.name}
+      aria-label={item.fileName}
     >
         <button 
             onClick={onClose} 
@@ -136,10 +136,10 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         
         <div className="flex w-full h-full p-16">
             <div className="flex-1 flex items-center justify-center">
-                {item.type === 'image' ? (
+                {item.fileType === 'image' ? (
                     <img 
                         src={`${item.thumbnailUrl}?size=preview`} 
-                        alt={item.name} 
+                        alt={item.fileName} 
                         className="max-w-full max-h-full object-contain"
                     />
                 ) : (
@@ -154,7 +154,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                 )}
             </div>
             <aside className="w-80 flex-shrink-0 bg-gray-800/50 backdrop-blur-md rounded-lg ml-4 text-white/90 p-6 flex flex-col overflow-y-auto">
-                <h2 className="text-xl font-bold mb-1">{item.aiTitle || item.name}</h2>
+                <h2 className="text-xl font-bold mb-1">{item.aiTitle || item.fileName}</h2>
                 <p className="text-sm text-white/60 mb-4">{formattedDate}</p>
 
                 <div className="flex items-center gap-4 mb-6">
@@ -189,7 +189,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                             详细信息
                         </h3>
                         <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-white/60">文件名</span> <span>{item.name}</span></div>
+                            <div className="flex justify-between"><span className="text-white/60">文件名</span> <span>{item.fileName}</span></div>
                             {metadata.width && metadata.height && (
                                <div className="flex justify-between"><span className="text-white/60">分辨率</span> <span>{metadata.width} x {metadata.height}</span></div>
                             )}

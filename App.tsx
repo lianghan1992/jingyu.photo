@@ -94,7 +94,7 @@ const App: React.FC = () => {
     }
 
     return mediaItems.reduce((acc, item) => {
-      const dateStr = item.date;
+      const dateStr = item.mediaCreatedAt;
       // Robust date parsing
       const parsableDateStr = dateStr ? dateStr.replace(' ', 'T') : null;
       const date = parsableDateStr ? new Date(parsableDateStr) : null;
