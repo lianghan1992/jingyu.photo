@@ -41,10 +41,10 @@ const MetadataDisplay: React.FC<{ item: MediaItem }> = ({ item }) => {
   if (item.type === 'image') {
     const imgMeta = metadata as ImageMetadata;
     if (imgMeta.width && imgMeta.height) infoItems.push({ label: '尺寸', value: `${imgMeta.width} × ${imgMeta.height}` });
-    if (imgMeta.camera_make || imgMeta.camera_model) infoItems.push({ label: '相机', value: `${imgMeta.camera_make || ''} ${imgMeta.camera_model || ''}`.trim() });
-    if (imgMeta.focal_length) infoItems.push({ label: '焦距', value: imgMeta.focal_length });
+    if (imgMeta.cameraMake || imgMeta.cameraModel) infoItems.push({ label: '相机', value: `${imgMeta.cameraMake || ''} ${imgMeta.cameraModel || ''}`.trim() });
+    if (imgMeta.focalLength) infoItems.push({ label: '焦距', value: imgMeta.focalLength });
     if (imgMeta.aperture) infoItems.push({ label: '光圈', value: imgMeta.aperture });
-    if (imgMeta.shutter_speed) infoItems.push({ label: '快门', value: imgMeta.shutter_speed });
+    if (imgMeta.shutterSpeed) infoItems.push({ label: '快门', value: imgMeta.shutterSpeed });
     if (imgMeta.iso) infoItems.push({ label: 'ISO', value: String(imgMeta.iso) });
   } else if (item.type === 'video') {
     const vidMeta = metadata as VideoMetadata;
@@ -96,13 +96,13 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
-  // Fix: Directly use item.url as it now appears to be the full, correct path.
-  // This removes the manually added '/api/original' prefix which was causing duplication.
   const mediaUrl = item.url;
 
   const formattedDate = () => {
     if (!item.date) return '未知日期';
-    const date = new Date(item.date);
+    // Robust date parsing: handle cases where 'T' is replaced by a space.
+    const parsableDateStr = item.date.replace(' ', 'T');
+    const date = new Date(parsableDateStr);
     if (isNaN(date.getTime())) return '未知日期';
     return date.toLocaleString('zh-CN', { dateStyle: 'long', timeStyle: 'short' });
   };

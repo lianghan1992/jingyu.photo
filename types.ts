@@ -1,11 +1,11 @@
 export interface ImageMetadata {
   width?: number;
   height?: number;
-  camera_make?: string | null;
-  camera_model?: string | null;
-  focal_length?: string | null;
+  cameraMake?: string | null;
+  cameraModel?: string | null;
+  focalLength?: string | null;
   aperture?: string | null;
-  shutter_speed?: string | null;
+  shutterSpeed?: string | null;
   iso?: number | null;
 }
 
