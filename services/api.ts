@@ -45,6 +45,12 @@ async function apiFetch(url: string, options: RequestInit = {}): Promise<Respons
   return response;
 }
 
+// New function to fetch media as a blob and return a local URL.
+export async function fetchAuthenticatedBlobUrl(url: string): Promise<string> {
+    const response = await apiFetch(url);
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+}
 
 interface FetchMediaParams {
   page?: number;

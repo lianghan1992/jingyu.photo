@@ -10,9 +10,11 @@ import {
   InfoIcon,
   TagIcon
 } from './Icons';
+import { fetchAuthenticatedBlobUrl } from '../services/api';
 
 // To satisfy TypeScript, since hls.js is loaded from a script tag.
 declare const Hls: any;
+const STORAGE_KEY = 'jingyu-today-auth-token';
 
 interface ModalProps {
   item: MediaItem;
@@ -112,16 +114,86 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
   const modalRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const [imageSrc, setImageSrc] = useState(`${item.thumbnailUrl}?size=preview`);
-  const [hasAttemptedFallback, setHasAttemptedFallback] = useState(false);
+  const [mediaSrc, setMediaSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    // When item changes, reset state and attempt to load the highest quality preview
-    setImageSrc(`${item.thumbnailUrl}?size=preview`);
-    setHasAttemptedFallback(false);
+    // Reset state when item changes
     setShowDetails(false);
-  }, [item.uid, item.thumbnailUrl]);
+    setIsLoading(true);
+    setError(false);
+    setMediaSrc(null);
+
+    let isMounted = true;
+    let objectUrl: string | null = null;
+    let hlsInstance: any | null = null;
+
+    const cleanup = () => {
+        isMounted = false;
+        if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+        }
+        if (hlsInstance) {
+            hlsInstance.destroy();
+        }
+    };
+    
+    const loadMedia = async () => {
+        try {
+            if (item.fileType === 'image') {
+                let url;
+                try {
+                    url = await fetchAuthenticatedBlobUrl(`${item.thumbnailUrl}?size=preview`);
+                } catch (e) {
+                    console.warn("Could not load preview, falling back to full image.", e);
+                    url = await fetchAuthenticatedBlobUrl(item.url);
+                }
+                if (isMounted) {
+                    objectUrl = url;
+                    setMediaSrc(url);
+                }
+            } else if (item.fileType === 'video') {
+                const videoElement = videoRef.current;
+                if (!videoElement) return;
+
+                if (item.hlsPlaybackUrl && typeof Hls !== 'undefined' && Hls.isSupported()) {
+                    hlsInstance = new Hls({
+                        xhrSetup: (xhr: XMLHttpRequest) => {
+                            const token = localStorage.getItem(STORAGE_KEY);
+                            if (token) {
+                                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                            }
+                        }
+                    });
+                    hlsInstance.loadSource(item.hlsPlaybackUrl);
+                    hlsInstance.attachMedia(videoElement);
+                    hlsInstance.on('hlsError', (event: any, data: any) => {
+                        console.error('HLS Error:', data);
+                        if (isMounted) setError(true);
+                    });
+                } else if (item.url) { // Fallback to direct URL if HLS is not available/supported
+                    const url = await fetchAuthenticatedBlobUrl(item.url);
+                    if (isMounted) {
+                        objectUrl = url;
+                        videoElement.src = url;
+                        setMediaSrc(url); // Trigger re-render
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Failed to load media in modal:", err);
+            if (isMounted) setError(true);
+        } finally {
+            if (isMounted) setIsLoading(false);
+        }
+    };
+
+    loadMedia();
+    return cleanup;
+
+  }, [item.uid, item.url, item.thumbnailUrl, item.fileType, item.hlsPlaybackUrl]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -139,47 +211,6 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose, onNavigate]);
-  
-  useEffect(() => {
-    if (item.fileType !== 'video' || !videoRef.current) {
-      return;
-    }
-
-    const videoElement = videoRef.current;
-    let hlsInstance: any | null = null;
-
-    if (item.hlsPlaybackUrl) {
-      if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-        hlsInstance = new Hls();
-        hlsInstance.loadSource(item.hlsPlaybackUrl);
-        hlsInstance.attachMedia(videoElement);
-      } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native HLS support (e.g., Safari)
-        videoElement.src = item.hlsPlaybackUrl;
-      } else {
-        // Fallback to direct URL if HLS is not supported at all
-        videoElement.src = item.url;
-      }
-    } else {
-      // No HLS URL, use direct URL
-      videoElement.src = item.url;
-    }
-
-    return () => {
-      if (hlsInstance) {
-        hlsInstance.destroy();
-      }
-    };
-  }, [item]);
-
-  const handleImageError = () => {
-    if (!hasAttemptedFallback) {
-      setHasAttemptedFallback(true);
-      setImageSrc(item.url);
-    }
-  };
-  
-  const showImageError = hasAttemptedFallback && imageSrc === item.url;
 
   return (
     <div 
@@ -216,30 +247,37 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         
         <div className="flex flex-col md:flex-row w-full h-full p-2 sm:p-4 md:p-8 gap-4">
             <div className="flex-1 flex items-center justify-center relative min-h-0">
-                {item.fileType === 'image' ? (
-                    showImageError ? (
-                        <div className="flex items-center justify-center h-full w-full bg-black/10 rounded-lg">
-                            <p className="text-white/60">图片加载失败</p>
-                        </div>
-                    ) : (
+                {isLoading && (
+                    <div className="text-white/60">加载中...</div>
+                )}
+                {error && !isLoading && (
+                    <div className="flex items-center justify-center h-full w-full bg-black/10 rounded-lg">
+                        <p className="text-white/60">媒体加载失败</p>
+                    </div>
+                )}
+                {!isLoading && !error && (
+                  <>
+                    {item.fileType === 'image' && mediaSrc && (
                         <img 
-                            key={imageSrc}
-                            src={imageSrc} 
+                            key={mediaSrc}
+                            src={mediaSrc} 
                             alt={item.fileName} 
                             className="max-w-full max-h-full object-contain"
-                            onError={handleImageError}
                         />
-                    )
-                ) : (
-                    <video 
-                        ref={videoRef}
-                        controls 
-                        autoPlay 
-                        className="max-w-full max-h-full object-contain"
-                    >
-                        您的浏览器不支持播放该视频。
-                    </video>
+                    )}
+                    {item.fileType === 'video' && (
+                        <video 
+                            ref={videoRef}
+                            controls 
+                            autoPlay 
+                            className="max-w-full max-h-full object-contain"
+                        >
+                            您的浏览器不支持播放该视频。
+                        </video>
+                    )}
+                  </>
                 )}
+                
                 {/* --- MOBILE TOOLBAR --- */}
                 <div className="md:hidden absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent flex justify-center items-center gap-10">
                     <button onClick={() => onToggleFavorite(item.uid)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
