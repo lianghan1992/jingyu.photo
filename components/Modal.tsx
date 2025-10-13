@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import type { MediaItem, ImageMetadata, VideoMetadata } from '../types';
 import {
   CloseIcon,
   ChevronLeftIcon,
@@ -10,123 +11,19 @@ import {
   TagIcon
 } from './Icons';
 import { fetchAuthenticatedBlobUrl } from '../services/api';
-import type { MediaItem, ImageMetadata, VideoMetadata } from '../types';
 
+// To satisfy TypeScript, since hls.js is loaded from a script tag.
 declare const Hls: any;
 const STORAGE_KEY = 'jingyu-today-auth-token';
 
 interface ModalProps {
-  items: MediaItem[];
-  currentIndex: number;
+  item: MediaItem;
   onClose: () => void;
   onToggleFavorite: (uid: string) => void;
   onNavigate: (direction: 'prev' | 'next') => void;
 }
 
-const MediaDisplay: React.FC<{ item: MediaItem; isActive: boolean }> = ({ item, isActive }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [mediaSrc, setMediaSrc] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    setIsLoading(true);
-    setError(false);
-    setMediaSrc(null);
-
-    let isMounted = true;
-    let objectUrl: string | null = null;
-    let hlsInstance: any | null = null;
-
-    const cleanup = () => {
-      isMounted = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-      if (hlsInstance) hlsInstance.destroy();
-    };
-
-    const loadMedia = async () => {
-      try {
-        if (item.fileType === 'image') {
-          const url = await fetchAuthenticatedBlobUrl(`${item.thumbnailUrl}?size=preview`);
-          if (isMounted) {
-            objectUrl = url;
-            setMediaSrc(url);
-          }
-        } else if (item.fileType === 'video') {
-          if (!videoRef.current) return;
-          if (item.hlsPlaybackUrl && typeof Hls !== 'undefined' && Hls.isSupported()) {
-            hlsInstance = new Hls({
-              xhrSetup: (xhr: XMLHttpRequest) => {
-                const token = localStorage.getItem(STORAGE_KEY);
-                if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-              },
-            });
-            hlsInstance.loadSource(item.hlsPlaybackUrl);
-            hlsInstance.attachMedia(videoRef.current);
-          } else if (item.url) {
-            const url = await fetchAuthenticatedBlobUrl(item.url);
-            if (isMounted) {
-              objectUrl = url;
-              setMediaSrc(url);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load media:", err);
-        if (isMounted) setError(true);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-
-    if (isActive) {
-        loadMedia();
-    } else {
-        setIsLoading(false); // Don't load inactive slides unless they become active
-    }
-    return cleanup;
-  }, [item, isActive]);
-
-  useEffect(() => {
-    // Handle video play/pause based on active state
-    if (videoRef.current) {
-      if (isActive) {
-        videoRef.current.play().catch(e => console.warn("Autoplay was prevented.", e));
-      } else {
-        videoRef.current.pause();
-        videoRef.current.currentTime = 0; // Reset video on slide out
-      }
-    }
-  }, [isActive]);
-
-
-  if (isLoading) return <div className="w-full h-full flex items-center justify-center text-white/60">加载中...</div>;
-  if (error) return <div className="w-full h-full flex items-center justify-center bg-black/10 rounded-lg"><p className="text-white/60">媒体加载失败</p></div>;
-
-  return (
-    <>
-      {item.fileType === 'image' && mediaSrc && (
-        <img src={mediaSrc} alt={item.fileName} className="max-w-full max-h-full object-contain" draggable="false" />
-      )}
-      {item.fileType === 'video' && (
-        <video
-          ref={videoRef}
-          src={mediaSrc || undefined}
-          controls
-          autoPlay={isActive}
-          muted // Always muted and controlled by `isActive` to avoid conflicting auto-plays
-          loop
-          playsInline
-          className="max-w-full max-h-full object-contain"
-        >
-          您的浏览器不支持播放该视频。
-        </video>
-      )}
-    </>
-  );
-};
-
-
+// Helper component for cleaner metadata display
 const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => {
   if (!value) return null;
   return (
@@ -137,10 +34,15 @@ const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
   );
 };
 
-const DetailsPanelContent: React.FC<{ item: MediaItem, onToggleFavorite: (uid: string) => void }> = ({ item, onToggleFavorite }) => {
+// Component for the details content, used in both desktop sidebar and mobile bottom sheet
+const DetailsPanelContent: React.FC<Pick<ModalProps, 'item' | 'onToggleFavorite'>> = ({ item, onToggleFavorite }) => {
     const formattedDate = item.mediaCreatedAt
     ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleString('zh-CN', {
-        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       })
     : '未知日期';
 
@@ -207,101 +109,108 @@ const DetailsPanelContent: React.FC<{ item: MediaItem, onToggleFavorite: (uid: s
   );
 };
 
-const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFavorite, onNavigate }) => {
+
+const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
   const modalRef = useRef<HTMLDivElement>(null);
-  const filmStripRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const [offsetX, setOffsetX] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
+  const [mediaSrc, setMediaSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const hasNavigatedRef = useRef(false);
 
-  const currentItem = items[currentIndex];
-  const prevItem = items[currentIndex - 1];
-  const nextItem = items[currentIndex + 1];
+  useEffect(() => {
+    // Reset state when item changes
+    setShowDetails(false);
+    setIsLoading(true);
+    setError(false);
+    setMediaSrc(null);
+
+    let isMounted = true;
+    let objectUrl: string | null = null;
+    let hlsInstance: any | null = null;
+
+    const cleanup = () => {
+        isMounted = false;
+        if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+        }
+        if (hlsInstance) {
+            hlsInstance.destroy();
+        }
+    };
+    
+    const loadMedia = async () => {
+        try {
+            if (item.fileType === 'image') {
+                let url;
+                try {
+                    url = await fetchAuthenticatedBlobUrl(`${item.thumbnailUrl}?size=preview`);
+                } catch (e) {
+                    console.warn("Could not load preview, falling back to full image.", e);
+                    url = await fetchAuthenticatedBlobUrl(item.url);
+                }
+                if (isMounted) {
+                    objectUrl = url;
+                    setMediaSrc(url);
+                }
+            } else if (item.fileType === 'video') {
+                const videoElement = videoRef.current;
+                if (!videoElement) return;
+
+                if (item.hlsPlaybackUrl && typeof Hls !== 'undefined' && Hls.isSupported()) {
+                    hlsInstance = new Hls({
+                        xhrSetup: (xhr: XMLHttpRequest) => {
+                            const token = localStorage.getItem(STORAGE_KEY);
+                            if (token) {
+                                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                            }
+                        }
+                    });
+                    hlsInstance.loadSource(item.hlsPlaybackUrl);
+                    hlsInstance.attachMedia(videoElement);
+                    hlsInstance.on('hlsError', (event: any, data: any) => {
+                        console.error('HLS Error:', data);
+                        if (isMounted) setError(true);
+                    });
+                } else if (item.url) { // Fallback to direct URL if HLS is not available/supported
+                    const url = await fetchAuthenticatedBlobUrl(item.url);
+                    if (isMounted) {
+                        objectUrl = url;
+                        videoElement.src = url;
+                        setMediaSrc(url); // Trigger re-render
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Failed to load media in modal:", err);
+            if (isMounted) setError(true);
+        } finally {
+            if (isMounted) setIsLoading(false);
+        }
+    };
+
+    loadMedia();
+    return cleanup;
+
+  }, [item.uid, item.url, item.thumbnailUrl, item.fileType, item.hlsPlaybackUrl]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-      else if (event.key === 'ArrowLeft') onNavigate('prev');
-      else if (event.key === 'ArrowRight') onNavigate('next');
+      if (event.key === 'Escape') {
+        onClose();
+      } else if (event.key === 'ArrowLeft') {
+        onNavigate('prev');
+      } else if (event.key === 'ArrowRight') {
+        onNavigate('next');
+      }
     };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [onClose, onNavigate]);
-
-  useEffect(() => {
-    if (hasNavigatedRef.current) {
-        // After navigation, reset offset without animation
-        if (filmStripRef.current) {
-            filmStripRef.current.style.transition = 'none';
-        }
-        setOffsetX(0);
-        
-        // Force a reflow before re-enabling transitions
-        requestAnimationFrame(() => {
-            if (filmStripRef.current) {
-                filmStripRef.current.style.transition = '';
-            }
-        });
-        hasNavigatedRef.current = false;
-    }
-  }, [currentIndex]);
-  
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    setIsDragging(true);
-  };
-  
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || !touchStartRef.current) return;
-    const deltaX = e.touches[0].clientX - touchStartRef.current.x;
-    const deltaY = e.touches[0].clientY - touchStartRef.current.y;
-
-    // Prioritize horizontal movement to prevent vertical scroll during swipe
-    if (Math.abs(deltaX) > Math.abs(deltaY) + 5) { // Add a small threshold
-        e.preventDefault();
-        e.stopPropagation();
-        setOffsetX(deltaX);
-    } else if (Math.abs(deltaY) > Math.abs(deltaX) + 5) {
-        // If vertical scroll is intended, cancel the drag
-        setIsDragging(false);
-        setOffsetX(0);
-    }
-  };
-  
-  const handleTouchEnd = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    const containerWidth = containerRef.current?.offsetWidth || window.innerWidth;
-    const swipeThreshold = containerWidth / 4;
-
-    if (offsetX < -swipeThreshold && nextItem) {
-      onNavigate('next');
-      hasNavigatedRef.current = true;
-    } else if (offsetX > swipeThreshold && prevItem) {
-      onNavigate('prev');
-      hasNavigatedRef.current = true;
-    } else {
-      setOffsetX(0);
-    }
-  };
-  
-  const handleTransitionEnd = () => {
-    if (!isDragging && offsetX !== 0) {
-        setOffsetX(0);
-    }
-  };
-
-  const getFilmStripTransform = () => {
-    const baseOffset = -33.333333; // Center the current item
-    return `translateX(calc(${baseOffset}% + ${offsetX}px))`;
-  }
-
-  if (!currentItem) return null;
 
   return (
     <div 
@@ -310,7 +219,7 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
       onClick={(e) => { if(e.target === modalRef.current) onClose() }}
       role="dialog"
       aria-modal="true"
-      aria-label={currentItem.fileName}
+      aria-label={item.fileName}
     >
         <button 
             onClick={onClose} 
@@ -320,52 +229,62 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
             <CloseIcon className="w-8 h-8" />
         </button>
         
-        {prevItem && <button
+        <button
           onClick={() => onNavigate('prev')}
           className="absolute left-1 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-[60]"
           aria-label="上一个"
         >
           <ChevronLeftIcon className="w-8 h-8" />
-        </button>}
+        </button>
 
-        {nextItem && <button
+        <button
           onClick={() => onNavigate('next')}
           className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-[60]"
           aria-label="下一个"
         >
           <ChevronRightIcon className="w-8 h-8" />
-        </button>}
+        </button>
         
         <div className="flex flex-col md:flex-row w-full h-full p-2 sm:p-4 md:p-8 gap-4">
-            <div 
-              ref={containerRef}
-              className="flex-1 flex items-center justify-center relative min-h-0 overflow-hidden"
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-            >
-              <div
-                ref={filmStripRef}
-                className="flex h-full items-center"
-                style={{
-                    transform: getFilmStripTransform(),
-                    transition: isDragging ? 'none' : 'transform 0.3s ease-out',
-                }}
-                onTransitionEnd={handleTransitionEnd}
-              >
-                {[prevItem, currentItem, nextItem].map((item, index) => (
-                    <div key={item ? item.uid : `empty-${index}`} className="w-full h-full flex-shrink-0 flex items-center justify-center p-2">
-                        {item && <MediaDisplay item={item} isActive={index === 1} />}
+            <div className="flex-1 flex items-center justify-center relative min-h-0">
+                {isLoading && (
+                    <div className="text-white/60">加载中...</div>
+                )}
+                {error && !isLoading && (
+                    <div className="flex items-center justify-center h-full w-full bg-black/10 rounded-lg">
+                        <p className="text-white/60">媒体加载失败</p>
                     </div>
-                ))}
-              </div>
+                )}
+                {!isLoading && !error && (
+                  <>
+                    {item.fileType === 'image' && mediaSrc && (
+                        <img 
+                            key={mediaSrc}
+                            src={mediaSrc} 
+                            alt={item.fileName} 
+                            className="max-w-full max-h-full object-contain"
+                        />
+                    )}
+                    {item.fileType === 'video' && (
+                        <video 
+                            ref={videoRef}
+                            controls 
+                            autoPlay 
+                            className="max-w-full max-h-full object-contain"
+                        >
+                            您的浏览器不支持播放该视频。
+                        </video>
+                    )}
+                  </>
+                )}
                 
+                {/* --- MOBILE TOOLBAR --- */}
                 <div className="md:hidden absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent flex justify-center items-center gap-10">
-                    <button onClick={() => onToggleFavorite(currentItem.uid)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
-                        {currentItem.isFavorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
-                        <span className="text-xs mt-1">{currentItem.isFavorite ? '已收藏' : '收藏'}</span>
+                    <button onClick={() => onToggleFavorite(item.uid)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
+                        {item.isFavorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
+                        <span className="text-xs mt-1">{item.isFavorite ? '已收藏' : '收藏'}</span>
                     </button>
-                    <a href={currentItem.downloadUrl} download className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
+                    <a href={item.downloadUrl} download className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
                         <DownloadIcon className="w-6 h-6" />
                         <span className="text-xs mt-1">下载</span>
                     </a>
@@ -375,11 +294,13 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
                     </button>
                 </div>
             </div>
+            {/* --- DESKTOP SIDEBAR --- */}
             <aside className="hidden md:flex w-full md:w-[380px] lg:w-[420px] flex-shrink-0 bg-zinc-900/80 backdrop-blur-xl rounded-lg text-white/90 p-4 md:p-6 flex-col overflow-y-auto">
-                <DetailsPanelContent item={currentItem} onToggleFavorite={onToggleFavorite} />
+                <DetailsPanelContent item={item} onToggleFavorite={onToggleFavorite} />
             </aside>
         </div>
         
+        {/* --- MOBILE DETAILS BOTTOM SHEET --- */}
         {showDetails && (
             <div 
                 className="absolute inset-0 bg-black/40 md:hidden animate-fade-in"
@@ -393,7 +314,7 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
                     aria-modal="true"
                     aria-label="详细信息"
                 >
-                    <DetailsPanelContent item={currentItem} onToggleFavorite={onToggleFavorite} />
+                    <DetailsPanelContent item={item} onToggleFavorite={onToggleFavorite} />
                 </aside>
             </div>
         )}

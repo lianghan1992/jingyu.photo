@@ -169,6 +169,8 @@ const App: React.FC = () => {
           setSelectedItemIndex(newIndex);
       }
   };
+
+  const selectedItem = selectedItemIndex !== null ? mediaItems[selectedItemIndex] : null;
   
   if (!isAuthenticated) {
     return <AuthGate onAuthenticated={() => setIsAuthenticated(true)} />;
@@ -222,10 +224,9 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {selectedItemIndex !== null && (
+      {selectedItem && (
         <Modal 
-          items={mediaItems}
-          currentIndex={selectedItemIndex}
+          item={selectedItem} 
           onClose={handleCloseModal}
           onToggleFavorite={handleToggleFavorite}
           onNavigate={handleNavigation}
