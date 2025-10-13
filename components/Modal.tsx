@@ -79,10 +79,8 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
-  // In the development environment, requests are only proxied to the backend if they start with `/api`.
-  // The backend provides a static-like URL (e.g., '/media_0/...'), so we must prepend `/api` here
-  // to ensure the request is routed correctly.
-  const mediaUrl = `/api${item.url}`;
+  // The backend now provides the full, correct URL, so we use it directly.
+  const mediaUrl = item.url;
 
   const formattedDate = () => {
     if (!item.date) return '未知日期';
