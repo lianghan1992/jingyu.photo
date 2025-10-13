@@ -103,99 +103,116 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
   const modalRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const [placeholderSrc, setPlaceholderSrc] = useState<string | null>(null);
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
+  // Effect to load placeholder and then final media
   useEffect(() => {
-    // Reset state when item changes
+    // Reset state for new item
     setShowDetails(false);
-    setIsLoading(true);
+    setIsReady(false);
     setError(false);
+    setPlaceholderSrc(null);
     setMediaSrc(null);
+
+    let isMounted = true;
+    let placeholderUrl: string | null = null;
+    let finalMediaUrl: string | null = null;
+
+    const cleanup = () => {
+      isMounted = false;
+      if (placeholderUrl) URL.revokeObjectURL(placeholderUrl);
+      if (finalMediaUrl) URL.revokeObjectURL(finalMediaUrl);
+    };
+
+    const loadMedia = async () => {
+      try {
+        // 1. Load placeholder thumbnail
+        try {
+          placeholderUrl = await fetchAuthenticatedBlobUrl(`${item.thumbnailUrl}?size=preview`);
+          if (isMounted) setPlaceholderSrc(placeholderUrl);
+        } catch (e) {
+          console.warn("Could not load placeholder, proceeding without it.", e);
+        }
+
+        // 2. Load final media
+        if (item.fileType === 'image') {
+          finalMediaUrl = await fetchAuthenticatedBlobUrl(item.url);
+          if (isMounted) {
+            setMediaSrc(finalMediaUrl);
+            setIsReady(true);
+          }
+        } else if (item.fileType === 'video') {
+          // For video, we just signal that we're ready to render the player,
+          // which will then handle its own source loading.
+          if (isMounted) setIsReady(true);
+        }
+      } catch (err) {
+        console.error("Failed to load media in modal:", err);
+        if (isMounted) setError(true);
+      }
+    };
+
+    loadMedia();
+    return cleanup;
+  }, [item.uid, item.url, item.thumbnailUrl, item.fileType]);
+
+  // Effect to handle video playback *after* the video element is mounted
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!isReady || item.fileType !== 'video' || !videoElement) {
+      return;
+    }
 
     let isMounted = true;
     let objectUrl: string | null = null;
     let hlsInstance: any | null = null;
 
     const cleanup = () => {
-        isMounted = false;
-        if (objectUrl) {
-            URL.revokeObjectURL(objectUrl);
-        }
-        if (hlsInstance) {
-            hlsInstance.destroy();
-        }
+      isMounted = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (hlsInstance) hlsInstance.destroy();
     };
-    
-    const loadMedia = async () => {
-        try {
-            if (item.fileType === 'image') {
-                let url;
-                try {
-                    url = await fetchAuthenticatedBlobUrl(`${item.thumbnailUrl}?size=preview`);
-                } catch (e) {
-                    console.warn("Could not load preview, falling back to full image.", e);
-                    url = await fetchAuthenticatedBlobUrl(item.url);
-                }
-                if (isMounted) {
-                    objectUrl = url;
-                    setMediaSrc(url);
-                }
-            } else if (item.fileType === 'video') {
-                const videoElement = videoRef.current;
-                if (!videoElement) return;
 
-                if (item.hlsPlaybackUrl && typeof Hls !== 'undefined' && Hls.isSupported()) {
-                    hlsInstance = new Hls({
-                        xhrSetup: (xhr: XMLHttpRequest) => {
-                            const token = localStorage.getItem(STORAGE_KEY);
-                            if (token) {
-                                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-                            }
-                        }
-                    });
-                    hlsInstance.loadSource(item.hlsPlaybackUrl);
-                    hlsInstance.attachMedia(videoElement);
-                    hlsInstance.on('hlsManifestParsed', () => {
-                        if (isMounted) {
-                            videoElement.play().catch(e => console.warn("HLS autoplay was prevented.", e));
-                        }
-                    });
-                    hlsInstance.on('hlsError', (event: any, data: any) => {
-                        console.error('HLS Error:', data);
-                        if (isMounted) setError(true);
-                    });
-                } else if (item.url) { // Fallback to direct URL if HLS is not available/supported
-                    const url = await fetchAuthenticatedBlobUrl(item.url);
-                    if (isMounted) {
-                        objectUrl = url;
-                        setMediaSrc(url);
-                    }
-                }
+    const setupVideo = async () => {
+      try {
+        if (item.hlsPlaybackUrl && typeof Hls !== 'undefined' && Hls.isSupported()) {
+          hlsInstance = new Hls({
+            xhrSetup: (xhr: XMLHttpRequest) => {
+              const token = localStorage.getItem(STORAGE_KEY);
+              if (token) {
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+              }
             }
-        } catch (err) {
-            console.error("Failed to load media in modal:", err);
+          });
+          hlsInstance.loadSource(item.hlsPlaybackUrl);
+          hlsInstance.attachMedia(videoElement);
+          hlsInstance.on('hlsManifestParsed', () => {
+            if (isMounted) videoElement.play().catch(e => console.warn("HLS autoplay was prevented.", e));
+          });
+          hlsInstance.on('hlsError', (event: any, data: any) => {
+            console.error('HLS Error:', data);
             if (isMounted) setError(true);
-        } finally {
-            if (isMounted) setIsLoading(false);
+          });
+        } else if (item.url) {
+          objectUrl = await fetchAuthenticatedBlobUrl(item.url);
+          if (isMounted) {
+            videoElement.src = objectUrl;
+            videoElement.play().catch(e => console.warn("Direct video autoplay was prevented.", e));
+          }
         }
+      } catch (err) {
+        console.error("Failed to setup video:", err);
+        if (isMounted) setError(true);
+      }
     };
 
-    loadMedia();
+    setupVideo();
     return cleanup;
-
-  }, [item.uid, item.url, item.thumbnailUrl, item.fileType, item.hlsPlaybackUrl]);
-
-  useEffect(() => {
-    // Programmatically play the video when the source is ready for non-HLS files.
-    if (mediaSrc && videoRef.current && !item.hlsPlaybackUrl) {
-        videoRef.current.play().catch(e => {
-            console.warn("Direct video autoplay was prevented.", e);
-        });
-    }
-  }, [mediaSrc, item.hlsPlaybackUrl]);
+  }, [isReady, item.hlsPlaybackUrl, item.url, item.fileType]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -257,31 +274,31 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         
         <div className="flex flex-col md:flex-row w-full h-full p-2 sm:p-4 md:p-8 gap-4">
             <div className="flex-1 flex items-center justify-center relative min-h-0">
-                {isLoading && (
-                    <div className="text-white/60">加载中...</div>
-                )}
-                {error && !isLoading && (
+                {error ? (
                     <div className="flex items-center justify-center h-full w-full bg-black/10 rounded-lg">
                         <p className="text-white/60">媒体加载失败</p>
                     </div>
-                )}
-                {!isLoading && !error && (
+                ) : !isReady ? (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                        {placeholderSrc && (
+                            <img src={placeholderSrc} alt="正在加载..." className="max-w-full max-h-full object-contain blur-sm brightness-75" />
+                        )}
+                        <div className="absolute text-white/80 bg-black/30 px-4 py-2 rounded-lg font-semibold">加载中...</div>
+                    </div>
+                ) : (
                   <>
                     {item.fileType === 'image' && mediaSrc && (
                         <img 
-                            key={mediaSrc}
                             src={mediaSrc} 
                             alt={item.fileName} 
-                            className="max-w-full max-h-full object-contain"
+                            className="max-w-full max-h-full object-contain animate-fade-in"
                         />
                     )}
                     {item.fileType === 'video' && (
                         <video 
-                            key={mediaSrc || item.hlsPlaybackUrl}
                             ref={videoRef}
-                            src={item.hlsPlaybackUrl ? undefined : mediaSrc || ''}
                             controls
-                            className="max-w-full max-h-full object-contain"
+                            className="max-w-full max-h-full object-contain animate-fade-in"
                         >
                             您的浏览器不支持播放该视频。
                         </video>
@@ -290,7 +307,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                 )}
                 
                 {/* --- BOTTOM OVERLAY --- */}
-                {!isLoading && !error && (
+                {isReady && !error && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 sm:p-6 text-white animate-fade-in">
                     <div className="flex justify-between items-end gap-4">
                       {/* Left side: Info */}
