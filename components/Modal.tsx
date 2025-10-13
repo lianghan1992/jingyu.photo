@@ -167,12 +167,12 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       return;
     }
 
-    let isMounted = true;
+    let isCancelled = false;
     let objectUrl: string | null = null;
     let hlsInstance: any | null = null;
 
     const cleanup = () => {
-      isMounted = false;
+      isCancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       if (hlsInstance) hlsInstance.destroy();
     };
@@ -191,28 +191,34 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
           hlsInstance.loadSource(item.hlsPlaybackUrl);
           hlsInstance.attachMedia(videoElement);
           hlsInstance.on('hlsManifestParsed', () => {
-            if (isMounted) videoElement.play().catch(e => console.warn("HLS autoplay was prevented.", e));
+            if (!isCancelled) {
+              videoElement.play().catch(e => {
+                if(e.name !== 'AbortError') console.warn("HLS autoplay was prevented.", e)
+              });
+            }
           });
           hlsInstance.on('hlsError', (event: any, data: any) => {
             console.error('HLS Error:', data);
-            if (isMounted) setError(true);
+            if (!isCancelled) setError(true);
           });
         } else if (item.url) {
           objectUrl = await fetchAuthenticatedBlobUrl(item.url);
-          if (isMounted) {
+          if (!isCancelled) {
             videoElement.src = objectUrl;
-            videoElement.play().catch(e => console.warn("Direct video autoplay was prevented.", e));
+            videoElement.play().catch(e => {
+              if(e.name !== 'AbortError') console.warn("Direct video autoplay was prevented.", e)
+            });
           }
         }
       } catch (err) {
         console.error("Failed to setup video:", err);
-        if (isMounted) setError(true);
+        if (!isCancelled) setError(true);
       }
     };
 
     setupVideo();
     return cleanup;
-  }, [isReady, item.hlsPlaybackUrl, item.url, item.fileType]);
+  }, [isReady, item.uid, item.hlsPlaybackUrl, item.url, item.fileType]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -296,6 +302,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     )}
                     {item.fileType === 'video' && (
                         <video 
+                            key={item.uid}
                             ref={videoRef}
                             controls
                             className="max-w-full max-h-full object-contain animate-fade-in"
