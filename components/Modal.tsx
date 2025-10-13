@@ -1,20 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { MediaItem, ImageMetadata, VideoMetadata } from '../types';
 import {
   CloseIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   HeartIcon,
   HeartSolidIcon,
   DownloadIcon,
   InfoIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  TagIcon,
+  TagIcon
 } from './Icons';
-
-// Make Hls available in the window scope
-declare global {
-    interface Window { Hls: any; }
-}
 
 interface ModalProps {
   item: MediaItem;
@@ -23,242 +18,159 @@ interface ModalProps {
   onNavigate: (direction: 'prev' | 'next') => void;
 }
 
-// Helper component for cleaner metadata display
-const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => {
-  if (!value) return null;
-  return (
-    <p>
-      <strong>{label}:</strong> <span className="break-all">{value}</span>
-    </p>
-  );
-};
-
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
-  const [showInfo, setShowInfo] = useState(false);
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const [imageSrc, setImageSrc] = useState('');
-  const [isHighResLoaded, setIsHighResLoaded] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setIsLoading(true);
-    if (item.file_type === 'image') {
-      setIsHighResLoaded(false);
-      const lowResSrc = `${item.thumbnailUrl}?size=small`;
-      setImageSrc(lowResSrc);
-
-      const highResImg = new Image();
-      // Use a new 'preview' size for optimized viewing
-      highResImg.src = `${item.thumbnailUrl}?size=preview`; 
-      highResImg.onload = () => {
-        setImageSrc(highResImg.src);
-        setIsHighResLoaded(true);
-        setIsLoading(false);
-      };
-      highResImg.onerror = () => {
-        // Fallback to large thumbnail or original if preview fails
-        setImageSrc(`${item.thumbnailUrl}?size=large`);
-        setIsHighResLoaded(true);
-        setIsLoading(false);
-      }
-    } else if (item.file_type === 'video' && videoRef.current) {
-        const video = videoRef.current;
-        const hlsUrl = item.hlsPlaybackUrl;
-
-        if (hlsUrl && window.Hls && window.Hls.isSupported()) {
-            const hls = new window.Hls();
-            hls.loadSource(hlsUrl);
-            hls.attachMedia(video);
-            hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-                video.play().catch(e => console.error("Autoplay was prevented.", e));
-            });
-        } else {
-            // Fallback for non-HLS videos or browsers
-            video.src = item.url;
-            video.load();
-            video.play().catch(e => console.error("Autoplay was prevented.", e));
-        }
-    }
-  }, [item.uid, item.file_type, item.url, item.thumbnailUrl, item.hlsPlaybackUrl]);
-
-
-  // Keyboard navigation
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-        e.preventDefault();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         onClose();
-    }
-    if (e.key === 'ArrowLeft') {
-        e.preventDefault();
+      } else if (event.key === 'ArrowLeft') {
         onNavigate('prev');
-    }
-    if (e.key === 'ArrowRight') {
-        e.preventDefault();
+      } else if (event.key === 'ArrowRight') {
         onNavigate('next');
-    }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [onClose, onNavigate]);
 
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
-  
-
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleFavoriteClick = () => {
     onToggleFavorite(item.uid);
   };
   
-  const handleBackgroundClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-        onClose();
-    }
-  };
+  const formattedDate = new Date(item.media_created_at.replace(' ', 'T')).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
-  // Type guards for metadata
-  const isImageMetadata = (metadata: any): metadata is ImageMetadata => {
-    return item.file_type === 'image' && metadata !== null && typeof metadata === 'object';
-  };
-
-  const isVideoMetadata = (metadata: any): metadata is VideoMetadata => {
-    return item.file_type === 'video' && metadata !== null && typeof metadata === 'object';
-  };
+  const metadata = item.media_metadata;
+  const isImage = item.file_type === 'image';
+  const imageMeta = isImage ? (metadata as ImageMetadata) : null;
+  const videoMeta = !isImage ? (metadata as VideoMetadata) : null;
   
-  const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    if (!dateString) return '未知日期';
-    try {
-        const parsableDateStr = dateString.replace(' ', 'T');
-        const date = new Date(parsableDateStr);
-        if(isNaN(date.getTime())) return '无效日期';
-        return date.toLocaleDateString('zh-CN', options);
-    } catch {
-        return '未知日期';
-    }
-  };
-
-  const renderMetadata = () => {
-    const metadata = item.media_metadata;
-    if (isImageMetadata(metadata)) {
-      const meta = metadata;
-      return (
-        <>
-          <MetadataRow label="尺寸" value={meta.width && meta.height ? `${meta.width} x ${meta.height}` : null} />
-          <MetadataRow label="相机" value={meta.cameraMake ? `${meta.cameraMake} ${meta.cameraModel || ''}`.trim() : null} />
-          <MetadataRow label="焦距" value={meta.focalLength} />
-          <MetadataRow label="光圈" value={meta.aperture} />
-          <MetadataRow label="快门速度" value={meta.shutterSpeed} />
-          <MetadataRow label="ISO" value={meta.iso} />
-        </>
-      );
-    }
-    if (isVideoMetadata(metadata)) {
-      const meta = metadata;
-      return (
-        <>
-          <MetadataRow label="尺寸" value={meta.width && meta.height ? `${meta.width} x ${meta.height}` : null} />
-          <MetadataRow label="时长" value={meta.duration ? `${Math.round(meta.duration)}s` : null} />
-          <MetadataRow label="帧率" value={meta.fps ? `${Math.round(meta.fps)} FPS` : null} />
-        </>
-      );
-    }
-    return null;
+  const formatDuration = (seconds: number | undefined) => {
+    if (seconds === undefined) return '';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   return (
     <div 
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm"
-      onClick={handleBackgroundClick}
+      ref={modalRef}
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fade-in"
+      onClick={(e) => { if(e.target === modalRef.current) onClose() }}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="media-title"
+      aria-label={item.file_name}
     >
-      <div className="absolute top-0 right-0 left-0 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent z-10" onClick={(e) => e.stopPropagation()}>
-        <div className="flex flex-col min-w-0">
-            <h2 id="media-title" className="text-white text-lg font-semibold truncate">{item.ai_title || item.file_name}</h2>
-            <p className="text-gray-300 text-sm">{formatDate(item.media_created_at)}</p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={() => setShowInfo(!showInfo)} className={`p-2 rounded-full transition-colors ${showInfo ? 'bg-blue-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`} aria-label="Show info">
-                <InfoIcon className="w-6 h-6" />
-            </button>
-            <button onClick={handleFavoriteClick} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Toggle favorite">
-                {item.is_favorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
-            </button>
-            <a href={`${item.downloadUrl}`} download={item.file_name} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Download media">
-                <DownloadIcon className="w-6 h-6" />
-            </a>
-            <button onClick={onClose} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Close modal">
-                <CloseIcon className="w-6 h-6" />
-            </button>
-        </div>
-      </div>
+        <button 
+            onClick={onClose} 
+            className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors z-50"
+            aria-label="Close modal"
+        >
+            <CloseIcon className="w-8 h-8" />
+        </button>
+        
+        <button
+          onClick={() => onNavigate('prev')}
+          className="absolute left-4 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-50"
+          aria-label="Previous item"
+        >
+          <ChevronLeftIcon className="w-8 h-8" />
+        </button>
 
-      <button onClick={(e) => { e.stopPropagation(); onNavigate('prev'); }} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 z-10 opacity-70 hover:opacity-100 transition-opacity" aria-label="Previous media">
-        <ChevronLeftIcon className="w-8 h-8" />
-      </button>
-      <button onClick={(e) => { e.stopPropagation(); onNavigate('next'); }} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 z-10 opacity-70 hover:opacity-100 transition-opacity" aria-label="Next media">
-        <ChevronRightIcon className="w-8 h-8" />
-      </button>
-
-      <div className="relative w-full h-full flex items-center justify-center p-0" onClick={(e) => e.stopPropagation()}>
-        <div className="w-full h-full flex items-center justify-center">
-            {isLoading && <div className="text-white absolute text-lg">加载中...</div>}
-            {item.file_type === 'image' ? (
-              <img 
-                  src={imageSrc}
-                  alt={item.file_name}
-                  className={`max-h-full max-w-full object-contain transition-all duration-500 ease-in-out ${isLoading ? 'opacity-0' : 'opacity-100'} ${isHighResLoaded ? 'filter-none blur-0' : 'filter blur-lg'}`}
-              />
-            ) : (
-              <video
-                  ref={videoRef}
-                  controls
-                  className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-                  onCanPlay={() => setIsLoading(false)}
-                  onError={() => setIsLoading(false)}
-              >
-                  您的浏览器不支持视频标签。
-              </video>
-            )}
-        </div>
-      </div>
-
-      <div 
-        className={`absolute top-0 right-0 bottom-0 w-80 bg-gray-900/80 backdrop-blur-lg text-white transform transition-transform duration-300 ease-in-out z-20 shadow-2xl ${showInfo ? 'translate-x-0' : 'translate-x-full'}`}
-        onClick={(e) => e.stopPropagation()}
-        aria-hidden={!showInfo}
-      >
-        <div className="p-6 overflow-y-auto h-full">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold">详细信息</h3>
-                <button onClick={() => setShowInfo(false)} className="p-1 rounded-full hover:bg-white/10" aria-label="Close info panel">
-                    <CloseIcon className="w-5 h-5" />
-                </button>
+        <button
+          onClick={() => onNavigate('next')}
+          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-50"
+          aria-label="Next item"
+        >
+          <ChevronRightIcon className="w-8 h-8" />
+        </button>
+        
+        <div className="flex w-full h-full p-16">
+            <div className="flex-1 flex items-center justify-center">
+                {item.file_type === 'image' ? (
+                    <img 
+                        src={`${item.url}?size=large`} 
+                        alt={item.file_name} 
+                        className="max-w-full max-h-full object-contain"
+                    />
+                ) : (
+                    <video 
+                        src={item.hlsPlaybackUrl || item.url} 
+                        controls 
+                        autoPlay 
+                        className="max-w-full max-h-full object-contain"
+                    >
+                        Your browser does not support the video tag.
+                    </video>
+                )}
             </div>
-            
-            <div className="space-y-4 text-sm text-gray-200">
-                <MetadataRow label="文件名" value={item.file_name} />
+            <aside className="w-80 flex-shrink-0 bg-gray-800/50 backdrop-blur-md rounded-lg ml-4 text-white/90 p-6 flex flex-col overflow-y-auto">
+                <h2 className="text-xl font-bold mb-1">{item.ai_title || item.file_name}</h2>
+                <p className="text-sm text-white/60 mb-4">{formattedDate}</p>
+
+                <div className="flex items-center gap-4 mb-6">
+                    <button onClick={handleFavoriteClick} className="flex items-center gap-2 text-sm hover:text-white transition-colors">
+                        {item.is_favorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5" />}
+                        {item.is_favorite ? '已收藏' : '收藏'}
+                    </button>
+                    <a href={item.downloadUrl} download className="flex items-center gap-2 text-sm hover:text-white transition-colors">
+                        <DownloadIcon className="w-5 h-5" />
+                        下载
+                    </a>
+                </div>
                 
                 {item.ai_tags && item.ai_tags.length > 0 && (
-                    <div>
-                        <strong>AI 标签:</strong>
-                        <div className="flex flex-wrap gap-2 mt-2">
+                    <div className="mb-6">
+                        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-white/60 mb-2">
+                            <TagIcon className="w-4 h-4" />
+                            AI 标签
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
                             {item.ai_tags.map(tag => (
-                                <span key={tag} className="flex items-center gap-1.5 bg-gray-700 text-gray-200 px-2.5 py-1 rounded-full text-xs">
-                                    <TagIcon className="w-3 h-3" />
-                                    {tag}
-                                </span>
+                                <span key={tag} className="bg-white/10 text-sm px-2.5 py-1 rounded-full">{tag}</span>
                             ))}
                         </div>
                     </div>
                 )}
-                 <hr className="border-gray-600 my-4" />
-                 {renderMetadata()}
-            </div>
+                
+                {metadata && (
+                    <div>
+                        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-white/60 mb-3">
+                            <InfoIcon className="w-4 h-4" />
+                            详细信息
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between"><span className="text-white/60">文件名</span> <span>{item.file_name}</span></div>
+                            {metadata.width && metadata.height && (
+                               <div className="flex justify-between"><span className="text-white/60">分辨率</span> <span>{metadata.width} x {metadata.height}</span></div>
+                            )}
+                            {isImage && imageMeta?.cameraMake && (
+                                <div className="flex justify-between"><span className="text-white/60">相机</span> <span>{imageMeta.cameraMake} {imageMeta.cameraModel}</span></div>
+                            )}
+                            {isImage && imageMeta?.aperture && imageMeta?.shutterSpeed && imageMeta?.iso && (
+                                <div className="flex justify-between"><span className="text-white/60">曝光</span> <span>{`ƒ/${imageMeta.aperture} • ${imageMeta.shutterSpeed}s • ISO ${imageMeta.iso}`}</span></div>
+                            )}
+                            {!isImage && videoMeta?.duration && (
+                                <div className="flex justify-between"><span className="text-white/60">时长</span> <span>{formatDuration(videoMeta.duration)}</span></div>
+                            )}
+                             {!isImage && videoMeta?.fps && (
+                                <div className="flex justify-between"><span className="text-white/60">帧率</span> <span>{videoMeta.fps.toFixed(2)} fps</span></div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </aside>
         </div>
-      </div>
     </div>
   );
 };
