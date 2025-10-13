@@ -79,7 +79,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
-  const mediaUrl = item.url;
+  const mediaUrl = item.downloadUrl;
 
   const formattedDate = () => {
     if (!item.date) return '未知日期';
