@@ -80,10 +80,11 @@ export async function authenticate(password: string): Promise<string> {
     }
     
     const data = await response.json();
-    if (!data.token) {
+    const token = data.access_token || data.token;
+    if (!token) {
         throw new Error('未能从服务器获取Token');
     }
-    return data.token;
+    return token;
 }
 
 export async function fetchMedia(params: FetchMediaParams): Promise<FetchMediaResponse> {
