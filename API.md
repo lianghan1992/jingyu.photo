@@ -19,16 +19,17 @@
 | 字段名           | 类型          | 描述                                       |
 | ---------------- | ------------- | ------------------------------------------ |
 | `uid`            | String        | 媒体项的唯一标识符 (MD5 of file_path)。    |
-| `file_name`      | String        | 文件名。                                   |
-| `media_created_at` | String (ISO)  | 媒体的创建日期 (EXIF或文件创建时间)。      |
-| `file_type`      | String        | 媒体类型 (`image` 或 `video`)。            |
-| `is_favorite`    | Boolean       | 是否已收藏。                               |
+| `name`           | String        | 文件名。                                   |
+| `date`           | String (ISO)  | 媒体的创建日期 (EXIF或文件创建时间)。      |
+| `type`           | String        | 媒体类型 (`image` 或 `video`)。            |
+| `isFavorite`     | Boolean       | 是否已收藏。                               |
 | `url`            | String        | 访问原始媒体文件的代理URL。                |
 | `thumbnailUrl`   | String        | 访问缩略图的URL (不含尺寸参数)。           |
 | `downloadUrl`    | String        | 下载原始媒体文件的URL。                    |
-| `ai_title`       | String        | (可选) AI 生成的标题。                     |
-| `ai_tags`        | Array[String] | (可选) AI 生成的标签列表。                 |
-| `media_metadata` | Object        | (可选) 包含媒体元数据的对象 (如宽高、相机信息等)。 |
+| `hlsPlaybackUrl` | String \| null | (仅对视频) HLS 播放列表的 URL。如果为 `null`，则不支持 HLS。 |
+| `aiTitle`        | String \| null | (可选) AI 生成的标题。                     |
+| `aiTags`         | Array[String] | (可选) AI 生成的标签列表。                 |
+| `metadata`       | Object        | (可选) 包含媒体元数据的对象 (如宽高、相机信息等)。 |
 
 ---
 
@@ -47,10 +48,7 @@ curl -i http://localhost:24116/api/status
 ```
 
 **响应 (200 OK):**
-```http
-HTTP/1.1 200 OK
-content-type: application/json
-
+```json
 {
   "is_scanning": false,
   "is_ai_processing": false
@@ -70,10 +68,7 @@ curl -i http://localhost:24116/api/stats
 ```
 
 **响应 (200 OK):**
-```http
-HTTP/1.1 200 OK
-content-type: application/json
-
+```json
 {
   "total": {"count": 251, "size": 18642021537},
   "photo": {"count": 242, "size": 1316754515},
@@ -107,10 +102,7 @@ curl -i "http://localhost:24116/api/media?pageSize=20&sort=newest&type=image"
 | `folder`      | String  | (可选) 按文件夹路径精确筛选。             |
 
 **响应 (200 OK):**
-```http
-HTTP/1.1 200 OK
-content-type: application/json
-
+```json
 {
   "total": 251,
   "page": 1,
@@ -118,7 +110,8 @@ content-type: application/json
   "items": [
     {
       "uid": "db992ebc023c7695322e87979cf46bf9",
-      "file_name": "VID_20250419_184348.mp4",
+      "name": "VID_20250419_184348.mp4",
+      "hlsPlaybackUrl": "/api/streams/db992ebc023c7695322e87979cf46bf9/master.m3u8",
       // ... 其他字段
     }
   ]
@@ -132,16 +125,8 @@ content-type: application/json
 - **Method:** `GET`
 - **Path:** `/api/folders`
 
-**Curl 示例:**
-```bash
-curl -i http://localhost:24116/api/folders
-```
-
 **响应 (200 OK):**
-```http
-HTTP/1.1 200 OK
-content-type: application/json
-
+```json
 [
   "/mnt/data/nextcloud/lianghan/files/07.Baby/11.成长记录/01.1岁/1岁生日",
   "/mnt/data/nextcloud/lianghan/files/07.Baby/11.成长记录/02.学走路"
@@ -153,15 +138,6 @@ content-type: application/json
 - **Method:** `POST` (收藏), `DELETE` (取消收藏)
 - **Path:** `/api/media/{uid}/favorite`
 
-**Curl 示例:**
-```bash
-# 收藏
-curl -i -X POST http://localhost:24116/api/media/f07eddf891a5ea742cf18093dcc5369f/favorite
-
-# 取消收藏
-curl -i -X DELETE http://localhost:24116/api/media/f07eddf891a5ea742cf18093dcc5369f/favorite
-```
-
 **响应 (204 No Content):**
 操作成功，无返回内容。
 
@@ -170,69 +146,71 @@ curl -i -X DELETE http://localhost:24116/api/media/f07eddf891a5ea742cf18093dcc53
 - **Method:** `GET`
 - **Path:** `/api/thumbnails/{uid}`
 
-**Curl 示例:**
-```bash
-curl -i http://localhost:24116/api/thumbnails/f07eddf891a5ea742cf18093dcc5369f?size=medium
-```
-
 **查询参数:**
 
 | 参数名 | 类型   | 描述                                     |
 | ------ | ------ | ---------------------------------------- |
-| `size` | String | (可选, 默认: `medium`) 缩略图尺寸 (`small`, `medium`, `large`)。 |
+| `size` | String | (可选, 默认: `medium`) 缩略图尺寸 (`small`, `medium`, `large`, `preview`)。 `preview` 尺寸建议用于全屏预览。 |
 
 **响应 (200 OK):**
 返回 `image/webp` 格式的图片数据。
 
-### 7. 下载原始文件
+### 7. 获取 HLS 视频流 (实时转码)
+
+此端点用于提供 HLS (HTTP Live Streaming) 视频流。当首次请求视频的 `master.m3u8` 文件时，后端会实时将原始视频转码为 1080p 的 HLS 流，并将其缓存在临时目录中。后续对该视频的请求将直接从缓存提供，直到缓存过期被自动清理。
+
+- **Method:** `GET`
+- **Path:** `/api/streams/{uid}/{filename}`
+
+**路径参数:**
+
+| 参数名 | 类型 | 描述 |
+| --- | --- | --- |
+| `uid` | String | 视频媒体项的唯一标识符。 |
+| `filename` | String | 请求的文件名，通常是 `master.m3u8` (主播放列表) 或视频切片 (如 `1080p_001.ts`)。 |
+
+**Curl 示例:**
+```bash
+# 请求主播放列表
+curl -i http://localhost:24116/api/streams/db992ebc023c7695322e87979cf46bf9/master.m3u8
+```
+
+**响应:**
+- **200 OK:** 成功时，返回请求的文件内容。
+  - 如果是 `.m3u8` 文件，`Content-Type` 为 `application/vnd.apple.mpegurl`。
+  - 如果是 `.ts` 文件，`Content-Type` 为 `video/mp2t`。
+- **404 Not Found:** 如果 `uid` 无效或文件未找到。
+- **500 Internal Server Error:** 如果 `ffmpeg` 转码失败。
+
+### 8. 下载原始文件
 
 - **Method:** `GET`
 - **Path:** `/api/media/{uid}/download`
 
-**Curl 示例:**
-```bash
-curl -i -o downloaded_file.jpg http://localhost:24116/api/media/f07eddf891a5ea742cf18093dcc5369f/download
-```
-
 **响应 (200 OK):**
 返回原始文件流，并带有 `Content-Disposition: attachment` 头，浏览器将提示下载。
 
-### 8. 获取原始文件 (代理)
+### 9. 获取原始文件 (代理)
 
 - **Method:** `GET`
 - **Path:** `/api/original/{mount_index}/{relative_path}`
 
-**Curl 示例:**
-```bash
-curl -i http://localhost:24116/api/original/0/2025.04.19.旋转木马/VID_20250419_184348.mp4
-```
-
 **响应 (200 OK):**
 返回原始文件流，用于在浏览器中直接显示。
 
-### 9. 触发媒体库扫描
+### 10. 触发媒体库扫描
 
 - **Method:** `POST`
 - **Path:** `/api/scan`
-
-**Curl 示例:**
-```bash
-curl -i -X POST http://localhost:24116/api/scan
-```
 
 **响应:**
 - **202 Accepted:** 任务已在后台启动。
 - **409 Conflict:** 如果已有扫描任务在运行。
 
-### 10. 触发AI内容分析
+### 11. 触发AI内容分析
 
 - **Method:** `POST`
 - **Path:** `/api/ai/process`
-
-**Curl 示例:**
-```bash
-curl -i -X POST http://localhost:24116/api/ai/process
-```
 
 **响应:**
 - **202 Accepted:** 任务已在后台启动。

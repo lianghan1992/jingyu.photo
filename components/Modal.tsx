@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { MediaItem, ImageMetadata, VideoMetadata } from '../types';
 import {
   CloseIcon,
@@ -11,6 +11,11 @@ import {
   TagIcon,
 } from './Icons';
 
+// Make Hls available in the window scope
+declare global {
+    interface Window { Hls: any; }
+}
+
 interface ModalProps {
   item: MediaItem;
   onClose: () => void;
@@ -18,34 +23,64 @@ interface ModalProps {
   onNavigate: (direction: 'prev' | 'next') => void;
 }
 
+// Helper component for cleaner metadata display
+const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => {
+  if (!value) return null;
+  return (
+    <p>
+      <strong>{label}:</strong> <span className="break-all">{value}</span>
+    </p>
+  );
+};
+
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
   const [showInfo, setShowInfo] = useState(false);
   
-  // State for progressive image loading and video loading
-  const [isVideoLoading, setIsVideoLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [imageSrc, setImageSrc] = useState('');
   const [isHighResLoaded, setIsHighResLoaded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (item.file_type === 'image') {
+    setIsLoading(true);
+    if (item.type === 'image') {
       setIsHighResLoaded(false);
-      // Immediately show the small, cached thumbnail
       const lowResSrc = `${item.thumbnailUrl}?size=small`;
       setImageSrc(lowResSrc);
 
-      // Preload the high-resolution image in the background
       const highResImg = new Image();
-      highResImg.src = `${item.url}?size=large`;
+      // Use a new 'preview' size for optimized viewing
+      highResImg.src = `${item.thumbnailUrl}?size=preview`; 
       highResImg.onload = () => {
-        // Once loaded, update the src to trigger the transition
         setImageSrc(highResImg.src);
         setIsHighResLoaded(true);
+        setIsLoading(false);
       };
-    } else {
-      // For videos, use a simple loading state
-      setIsVideoLoading(true);
+      highResImg.onerror = () => {
+        // Fallback to large thumbnail or original if preview fails
+        setImageSrc(`${item.thumbnailUrl}?size=large`);
+        setIsHighResLoaded(true);
+        setIsLoading(false);
+      }
+    } else if (item.type === 'video' && videoRef.current) {
+        const video = videoRef.current;
+        const hlsUrl = item.hlsPlaybackUrl;
+
+        if (hlsUrl && window.Hls && window.Hls.isSupported()) {
+            const hls = new window.Hls();
+            hls.loadSource(hlsUrl);
+            hls.attachMedia(video);
+            hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+                video.play().catch(e => console.error("Autoplay was prevented.", e));
+            });
+        } else {
+            // Fallback for non-HLS videos or browsers
+            video.src = item.url;
+            video.load();
+            video.play().catch(e => console.error("Autoplay was prevented.", e));
+        }
     }
-  }, [item.uid, item.file_type, item.url, item.thumbnailUrl]);
+  }, [item.uid, item.type, item.url, item.thumbnailUrl, item.hlsPlaybackUrl]);
 
 
   // Keyboard navigation
@@ -83,11 +118,11 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
 
   // Type guards for metadata
   const isImageMetadata = (metadata: any): metadata is ImageMetadata => {
-    return item.file_type === 'image' && metadata !== null && typeof metadata === 'object';
+    return item.type === 'image' && metadata !== null && typeof metadata === 'object';
   };
 
   const isVideoMetadata = (metadata: any): metadata is VideoMetadata => {
-    return item.file_type === 'video' && metadata !== null && typeof metadata === 'object';
+    return item.type === 'video' && metadata !== null && typeof metadata === 'object';
   };
   
   const formatDate = (dateString: string) => {
@@ -103,6 +138,33 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     }
   };
 
+  const renderMetadata = () => {
+    if (isImageMetadata(item.metadata)) {
+      const meta = item.metadata;
+      return (
+        <>
+          <MetadataRow label="尺寸" value={meta.width && meta.height ? `${meta.width} x ${meta.height}` : null} />
+          <MetadataRow label="相机" value={meta.cameraMake ? `${meta.cameraMake} ${meta.cameraModel || ''}`.trim() : null} />
+          <MetadataRow label="焦距" value={meta.focalLength} />
+          <MetadataRow label="光圈" value={meta.aperture} />
+          <MetadataRow label="快门速度" value={meta.shutterSpeed} />
+          <MetadataRow label="ISO" value={meta.iso} />
+        </>
+      );
+    }
+    if (isVideoMetadata(item.metadata)) {
+      const meta = item.metadata;
+      return (
+        <>
+          <MetadataRow label="尺寸" value={meta.width && meta.height ? `${meta.width} x ${meta.height}` : null} />
+          <MetadataRow label="时长" value={meta.duration ? `${Math.round(meta.duration)}s` : null} />
+          <MetadataRow label="帧率" value={meta.fps ? `${Math.round(meta.fps)} FPS` : null} />
+        </>
+      );
+    }
+    return null;
+  };
+
   return (
     <div 
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm"
@@ -113,17 +175,17 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     >
       <div className="absolute top-0 right-0 left-0 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent z-10" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col min-w-0">
-            <h2 id="media-title" className="text-white text-lg font-semibold truncate">{item.ai_title || item.file_name}</h2>
-            <p className="text-gray-300 text-sm">{formatDate(item.media_created_at)}</p>
+            <h2 id="media-title" className="text-white text-lg font-semibold truncate">{item.aiTitle || item.name}</h2>
+            <p className="text-gray-300 text-sm">{formatDate(item.date)}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={() => setShowInfo(!showInfo)} className={`p-2 rounded-full transition-colors ${showInfo ? 'bg-blue-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`} aria-label="Show info">
                 <InfoIcon className="w-6 h-6" />
             </button>
             <button onClick={handleFavoriteClick} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Toggle favorite">
-                {item.is_favorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
+                {item.isFavorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
             </button>
-            <a href={`${item.downloadUrl}`} download={item.file_name} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Download media">
+            <a href={`${item.downloadUrl}`} download={item.name} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Download media">
                 <DownloadIcon className="w-6 h-6" />
             </a>
             <button onClick={onClose} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Close modal">
@@ -141,26 +203,23 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
 
       <div className="relative w-full h-full flex items-center justify-center p-0" onClick={(e) => e.stopPropagation()}>
         <div className="w-full h-full flex items-center justify-center">
-            {item.file_type === 'image' ? (
-            <img 
-                src={imageSrc}
-                alt={item.file_name}
-                className={`max-h-full max-w-full object-contain transition-all duration-500 ease-in-out ${isHighResLoaded ? 'filter-none blur-0' : 'filter blur-lg scale-105'}`}
-            />
+            {isLoading && <div className="text-white absolute text-lg">加载中...</div>}
+            {item.type === 'image' ? (
+              <img 
+                  src={imageSrc}
+                  alt={item.name}
+                  className={`max-h-full max-w-full object-contain transition-all duration-500 ease-in-out ${isLoading ? 'opacity-0' : 'opacity-100'} ${isHighResLoaded ? 'filter-none blur-0' : 'filter blur-lg'}`}
+              />
             ) : (
-            <>
-              {isVideoLoading && <div className="text-white absolute">加载中...</div>}
               <video
-                  src={`${item.url}`}
+                  ref={videoRef}
                   controls
-                  autoPlay
-                  className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${isVideoLoading ? 'opacity-0' : 'opacity-100'}`}
-                  onLoadedData={() => setIsVideoLoading(false)}
-                  onError={() => setIsVideoLoading(false)}
+                  className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                  onCanPlay={() => setIsLoading(false)}
+                  onError={() => setIsLoading(false)}
               >
                   您的浏览器不支持视频标签。
               </video>
-            </>
             )}
         </div>
       </div>
@@ -179,12 +238,13 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
             </div>
             
             <div className="space-y-4 text-sm text-gray-200">
-                <p><strong>文件名:</strong> <span className="break-all">{item.file_name}</span></p>
-                {item.ai_tags && item.ai_tags.length > 0 && (
+                <MetadataRow label="文件名" value={item.name} />
+                
+                {item.aiTags && item.aiTags.length > 0 && (
                     <div>
                         <strong>AI 标签:</strong>
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {item.ai_tags.map(tag => (
+                            {item.aiTags.map(tag => (
                                 <span key={tag} className="flex items-center gap-1.5 bg-gray-700 text-gray-200 px-2.5 py-1 rounded-full text-xs">
                                     <TagIcon className="w-3 h-3" />
                                     {tag}
@@ -194,23 +254,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     </div>
                 )}
                  <hr className="border-gray-600 my-4" />
-                {isImageMetadata(item.media_metadata) && (
-                    <>
-                        <p><strong>尺寸:</strong> {item.media_metadata.width} x {item.media_metadata.height}</p>
-                        {item.media_metadata.camera_make && <p><strong>相机:</strong> {item.media_metadata.camera_make} {item.media_metadata.camera_model}</p>}
-                        {item.media_metadata.focal_length && <p><strong>焦距:</strong> {item.media_metadata.focal_length}</p>}
-                        {item.media_metadata.aperture && <p><strong>光圈:</strong> {item.media_metadata.aperture}</p>}
-                        {item.media_metadata.shutter_speed && <p><strong>快门速度:</strong> {item.media_metadata.shutter_speed}</p>}
-                        {item.media_metadata.iso && <p><strong>ISO:</strong> {item.media_metadata.iso}</p>}
-                    </>
-                )}
-                {isVideoMetadata(item.media_metadata) && (
-                    <>
-                        <p><strong>尺寸:</strong> {item.media_metadata.width} x {item.media_metadata.height}</p>
-                        {item.media_metadata.duration && <p><strong>时长:</strong> {Math.round(item.media_metadata.duration)}s</p>}
-                        {item.media_metadata.fps && <p><strong>帧率:</strong> {Math.round(item.media_metadata.fps)} FPS</p>}
-                    </>
-                )}
+                 {renderMetadata()}
             </div>
         </div>
       </div>
