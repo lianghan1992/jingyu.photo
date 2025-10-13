@@ -35,7 +35,7 @@ const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
 };
 
 // Component for the details content, used in both desktop sidebar and mobile bottom sheet
-const DetailsPanelContent: React.FC<Pick<ModalProps, 'item' | 'onToggleFavorite'>> = ({ item, onToggleFavorite }) => {
+const DetailsPanelContent: React.FC<{ item: MediaItem }> = ({ item }) => {
     const formattedDate = item.mediaCreatedAt
     ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleString('zh-CN', {
         year: 'numeric',
@@ -63,17 +63,6 @@ const DetailsPanelContent: React.FC<Pick<ModalProps, 'item' | 'onToggleFavorite'
       <div className="w-10 h-1 bg-white/30 rounded-full mx-auto mb-3 md:hidden" aria-hidden="true" />
       <h2 className="text-xl font-bold mb-1">{item.aiTitle || item.fileName}</h2>
       <p className="text-sm text-white/60 mb-4">{formattedDate}</p>
-
-      <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => onToggleFavorite(item.uid)} className="flex items-center gap-2 text-sm hover:text-white transition-colors">
-              {item.isFavorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5" />}
-              {item.isFavorite ? '已收藏' : '收藏'}
-          </button>
-          <a href={item.downloadUrl} download className="flex items-center gap-2 text-sm hover:text-white transition-colors">
-              <DownloadIcon className="w-5 h-5" />
-              下载
-          </a>
-      </div>
       
       {item.aiTags && item.aiTags.length > 0 && (
           <div className="mb-6">
@@ -211,6 +200,14 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
+  const formattedDate = item.mediaCreatedAt
+    ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : '未知日期';
+
   return (
     <div 
       ref={modalRef}
@@ -266,6 +263,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     )}
                     {item.fileType === 'video' && (
                         <video 
+                            key={mediaSrc || item.hlsPlaybackUrl}
                             ref={videoRef}
                             src={item.hlsPlaybackUrl ? undefined : mediaSrc || ''}
                             controls 
@@ -278,26 +276,48 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                   </>
                 )}
                 
-                {/* --- MOBILE TOOLBAR --- */}
-                <div className="md:hidden absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent flex justify-center items-center gap-10">
-                    <button onClick={() => onToggleFavorite(item.uid)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
-                        {item.isFavorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
-                        <span className="text-xs mt-1">{item.isFavorite ? '已收藏' : '收藏'}</span>
-                    </button>
-                    <a href={item.downloadUrl} download className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
-                        <DownloadIcon className="w-6 h-6" />
-                        <span className="text-xs mt-1">下载</span>
-                    </a>
-                    <button onClick={() => setShowDetails(true)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
-                        <InfoIcon className="w-6 h-6" />
-                        <span className="text-xs mt-1">信息</span>
-                    </button>
-                </div>
+                {/* --- BOTTOM OVERLAY --- */}
+                {!isLoading && !error && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 sm:p-6 text-white animate-fade-in">
+                    <div className="flex justify-between items-end gap-4">
+                      {/* Left side: Info */}
+                      <div className="min-w-0">
+                          <h2 className="font-bold text-lg truncate">{item.aiTitle || item.fileName}</h2>
+                          <p className="text-sm text-white/80">{formattedDate}</p>
+                          {item.aiTags && item.aiTags.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                  {item.aiTags.slice(0, 5).map(tag => (
+                                      <span key={tag} className="bg-white/10 text-xs px-2 py-0.5 rounded-full">{tag}</span>
+                                  ))}
+                              </div>
+                          )}
+                      </div>
+
+                      {/* Right side: Actions */}
+                      <div className="flex items-center flex-shrink-0 gap-4 sm:gap-5">
+                          <button onClick={() => onToggleFavorite(item.uid)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors text-center" aria-label={item.isFavorite ? '取消收藏' : '收藏'}>
+                              {item.isFavorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
+                              <span className="text-xs mt-1 md:sr-only">{item.isFavorite ? '已收藏' : '收藏'}</span>
+                          </button>
+                          <a href={item.downloadUrl} download className="flex flex-col items-center text-white/90 hover:text-white transition-colors text-center" aria-label="下载">
+                              <DownloadIcon className="w-6 h-6" />
+                              <span className="text-xs mt-1 md:sr-only">下载</span>
+                          </a>
+                          <button onClick={() => setShowDetails(!showDetails)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors text-center" aria-label="显示详细信息">
+                              <InfoIcon className="w-6 h-6" />
+                              <span className="text-xs mt-1 md:sr-only">信息</span>
+                          </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
             </div>
             {/* --- DESKTOP SIDEBAR --- */}
-            <aside className="hidden md:flex w-full md:w-[380px] lg:w-[420px] flex-shrink-0 bg-zinc-900/80 backdrop-blur-xl rounded-lg text-white/90 p-4 md:p-6 flex-col overflow-y-auto">
-                <DetailsPanelContent item={item} onToggleFavorite={onToggleFavorite} />
-            </aside>
+            {showDetails && (
+              <aside className="hidden md:flex w-full md:w-[380px] lg:w-[420px] flex-shrink-0 bg-zinc-900/80 backdrop-blur-xl rounded-lg text-white/90 p-4 md:p-6 flex-col overflow-y-auto animate-fade-in">
+                  <DetailsPanelContent item={item} />
+              </aside>
+            )}
         </div>
         
         {/* --- MOBILE DETAILS BOTTOM SHEET --- */}
@@ -314,7 +334,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     aria-modal="true"
                     aria-label="详细信息"
                 >
-                    <DetailsPanelContent item={item} onToggleFavorite={onToggleFavorite} />
+                    <DetailsPanelContent item={item} />
                 </aside>
             </div>
         )}
