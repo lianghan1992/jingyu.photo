@@ -79,7 +79,8 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
-  const mediaUrl = item.downloadUrl;
+  // Use `item.url` for preview as per API docs and prepend `/api` to make it proxy-friendly
+  const mediaUrl = `/api${item.url}`;
 
   const formattedDate = () => {
     if (!item.date) return '未知日期';
