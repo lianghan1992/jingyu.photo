@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { MediaItem, ImageMetadata, VideoMetadata } from '../types';
 import {
   CloseIcon,
@@ -36,6 +36,12 @@ const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [imageUrl, setImageUrl] = useState(`${item.thumbnailUrl}?size=preview`);
+
+  useEffect(() => {
+    // Reset image URL when item changes to show the new preview image
+    setImageUrl(`${item.thumbnailUrl}?size=preview`);
+  }, [item.thumbnailUrl]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -86,6 +92,12 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [item]);
 
+  const handleImageError = () => {
+    // Fallback to the original image if the preview image fails to load
+    if (imageUrl !== item.url) {
+      setImageUrl(item.url);
+    }
+  };
 
   const handleFavoriteClick = () => {
     onToggleFavorite(item.uid);
@@ -150,9 +162,10 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
             <div className="flex-1 flex items-center justify-center">
                 {item.fileType === 'image' ? (
                     <img 
-                        src={`${item.thumbnailUrl}?size=large`} 
+                        src={imageUrl} 
                         alt={item.fileName} 
                         className="max-w-full max-h-full object-contain"
+                        onError={handleImageError}
                     />
                 ) : (
                     <video 
@@ -165,7 +178,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     </video>
                 )}
             </div>
-            <aside className="w-80 flex-shrink-0 bg-gray-800/50 backdrop-blur-md rounded-lg ml-4 text-white/90 p-6 flex flex-col overflow-y-auto">
+            <aside className="w-96 flex-shrink-0 bg-black/50 backdrop-blur-md rounded-lg ml-4 text-white/90 p-6 flex flex-col overflow-y-auto">
                 <h2 className="text-xl font-bold mb-1">{item.aiTitle || item.fileName}</h2>
                 <p className="text-sm text-white/60 mb-4">{formattedDate}</p>
 
