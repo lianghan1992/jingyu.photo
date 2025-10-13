@@ -79,8 +79,9 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
-  // Use `item.url` for preview as per API docs and prepend `/api` to make it proxy-friendly
-  const mediaUrl = `/api${item.url}`;
+  // Use the URL directly from the API response.
+  // The backend now provides a full, correct path.
+  const mediaUrl = item.url;
 
   const formattedDate = () => {
     if (!item.date) return '未知日期';
