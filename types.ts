@@ -19,15 +19,15 @@ export interface VideoMetadata {
 
 export interface MediaItem {
   uid: string;
-  file_name: string;
-  media_created_at: string; // ISO date string
-  file_type: 'image' | 'video';
+  fileName: string;
+  mediaCreatedAt: string; // ISO date string
+  fileType: 'image' | 'video';
   url: string;
   thumbnailUrl: string;
   downloadUrl: string;
   hlsPlaybackUrl: string | null;
-  ai_title: string | null;
-  ai_tags: string[] | null;
-  is_favorite: boolean;
-  media_metadata: (ImageMetadata | VideoMetadata) | null;
+  aiTitle: string | null;
+  aiTags: string[] | null;
+  isFavorite: boolean;
+  mediaMetadata: (ImageMetadata | VideoMetadata) | null;
 }
