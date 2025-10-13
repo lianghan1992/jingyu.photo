@@ -158,6 +158,11 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     });
                     hlsInstance.loadSource(item.hlsPlaybackUrl);
                     hlsInstance.attachMedia(videoElement);
+                    hlsInstance.on('hlsManifestParsed', () => {
+                        if (isMounted) {
+                            videoElement.play().catch(e => console.warn("HLS autoplay was prevented.", e));
+                        }
+                    });
                     hlsInstance.on('hlsError', (event: any, data: any) => {
                         console.error('HLS Error:', data);
                         if (isMounted) setError(true);
@@ -182,6 +187,15 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     return cleanup;
 
   }, [item.uid, item.url, item.thumbnailUrl, item.fileType, item.hlsPlaybackUrl]);
+
+  useEffect(() => {
+    // Programmatically play the video when the source is ready for non-HLS files.
+    if (mediaSrc && videoRef.current && !item.hlsPlaybackUrl) {
+        videoRef.current.play().catch(e => {
+            console.warn("Direct video autoplay was prevented.", e);
+        });
+    }
+  }, [mediaSrc, item.hlsPlaybackUrl]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -266,8 +280,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                             key={mediaSrc || item.hlsPlaybackUrl}
                             ref={videoRef}
                             src={item.hlsPlaybackUrl ? undefined : mediaSrc || ''}
-                            controls 
-                            autoPlay 
+                            controls
                             className="max-w-full max-h-full object-contain"
                         >
                             您的浏览器不支持播放该视频。
