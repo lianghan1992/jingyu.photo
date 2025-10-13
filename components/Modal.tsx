@@ -96,7 +96,9 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
-  const mediaUrl = `/api/original${item.url}`;
+  // Fix: Directly use item.url as it now appears to be the full, correct path.
+  // This removes the manually added '/api/original' prefix which was causing duplication.
+  const mediaUrl = item.url;
 
   const formattedDate = () => {
     if (!item.date) return '未知日期';
