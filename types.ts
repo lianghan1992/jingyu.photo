@@ -1,13 +1,13 @@
 export interface ImageMetadata {
   width?: number;
   height?: number;
-  cameraMake?: string | null;
-  cameraModel?: string | null;
-  focalLength?: string | null;
+  camera_make?: string | null;
+  camera_model?: string | null;
+  focal_length?: string | null;
   aperture?: string | null;
-  shutterSpeed?: string | null;
+  shutter_speed?: string | null;
   iso?: number | null;
-  dateTimeOriginal?: string;
+  date_time_original?: string;
 }
 
 export interface VideoMetadata {
@@ -19,15 +19,15 @@ export interface VideoMetadata {
 
 export interface MediaItem {
   uid: string;
-  fileName: string;
-  mediaCreatedAt: string; // ISO date string
-  fileType: 'image' | 'video';
+  file_name: string;
+  media_created_at: string; // ISO date string
+  file_type: 'image' | 'video';
   url: string;
-  thumbnailUrl: string;
-  downloadUrl: string;
-  hlsPlaybackUrl: string | null;
-  aiTitle: string | null;
-  aiTags: string[] | null;
-  isFavorite: boolean;
-  mediaMetadata: (ImageMetadata | VideoMetadata) | null;
+  thumbnail_url: string;
+  download_url: string;
+  hls_playback_url: string | null;
+  ai_title: string | null;
+  ai_tags: string[] | null;
+  is_favorite: boolean;
+  media_metadata: (ImageMetadata | VideoMetadata) | null;
 }
