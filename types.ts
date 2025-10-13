@@ -7,6 +7,7 @@ export interface ImageMetadata {
   aperture?: string | null;
   shutterSpeed?: string | null;
   iso?: number | null;
+  dateTimeOriginal?: string;
 }
 
 export interface VideoMetadata {
@@ -18,15 +19,15 @@ export interface VideoMetadata {
 
 export interface MediaItem {
   uid: string;
-  file_name: string;
-  media_created_at: string; // ISO date string
-  file_type: 'image' | 'video';
+  name: string;
+  date: string; // ISO date string
+  type: 'image' | 'video';
   url: string;
   thumbnailUrl: string;
   downloadUrl: string;
   hlsPlaybackUrl: string | null;
-  ai_title: string | null;
-  ai_tags: string[] | null;
-  is_favorite: boolean;
-  media_metadata: (ImageMetadata | VideoMetadata) | null;
+  aiTitle: string | null;
+  aiTags: string[] | null;
+  isFavorite: boolean;
+  metadata: (ImageMetadata | VideoMetadata) | null;
 }

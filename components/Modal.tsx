@@ -42,7 +42,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     onToggleFavorite(item.uid);
   };
   
-  const formattedDate = new Date(item.media_created_at.replace(' ', 'T')).toLocaleString('zh-CN', {
+  const formattedDate = new Date(item.date.replace(' ', 'T')).toLocaleString('zh-CN', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -50,8 +50,8 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     minute: '2-digit',
   });
 
-  const metadata = item.media_metadata;
-  const isImage = item.file_type === 'image';
+  const metadata = item.metadata;
+  const isImage = item.type === 'image';
   const imageMeta = isImage ? (metadata as ImageMetadata) : null;
   const videoMeta = !isImage ? (metadata as VideoMetadata) : null;
   
@@ -69,7 +69,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       onClick={(e) => { if(e.target === modalRef.current) onClose() }}
       role="dialog"
       aria-modal="true"
-      aria-label={item.file_name}
+      aria-label={item.name}
     >
         <button 
             onClick={onClose} 
@@ -97,10 +97,10 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         
         <div className="flex w-full h-full p-16">
             <div className="flex-1 flex items-center justify-center">
-                {item.file_type === 'image' ? (
+                {item.type === 'image' ? (
                     <img 
-                        src={`${item.url}?size=large`} 
-                        alt={item.file_name} 
+                        src={`${item.thumbnailUrl}?size=preview`} 
+                        alt={item.name} 
                         className="max-w-full max-h-full object-contain"
                     />
                 ) : (
@@ -115,13 +115,13 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                 )}
             </div>
             <aside className="w-80 flex-shrink-0 bg-gray-800/50 backdrop-blur-md rounded-lg ml-4 text-white/90 p-6 flex flex-col overflow-y-auto">
-                <h2 className="text-xl font-bold mb-1">{item.ai_title || item.file_name}</h2>
+                <h2 className="text-xl font-bold mb-1">{item.aiTitle || item.name}</h2>
                 <p className="text-sm text-white/60 mb-4">{formattedDate}</p>
 
                 <div className="flex items-center gap-4 mb-6">
                     <button onClick={handleFavoriteClick} className="flex items-center gap-2 text-sm hover:text-white transition-colors">
-                        {item.is_favorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5" />}
-                        {item.is_favorite ? '已收藏' : '收藏'}
+                        {item.isFavorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5" />}
+                        {item.isFavorite ? '已收藏' : '收藏'}
                     </button>
                     <a href={item.downloadUrl} download className="flex items-center gap-2 text-sm hover:text-white transition-colors">
                         <DownloadIcon className="w-5 h-5" />
@@ -129,14 +129,14 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     </a>
                 </div>
                 
-                {item.ai_tags && item.ai_tags.length > 0 && (
+                {item.aiTags && item.aiTags.length > 0 && (
                     <div className="mb-6">
                         <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-white/60 mb-2">
                             <TagIcon className="w-4 h-4" />
                             AI 标签
                         </h3>
                         <div className="flex flex-wrap gap-2">
-                            {item.ai_tags.map(tag => (
+                            {item.aiTags.map(tag => (
                                 <span key={tag} className="bg-white/10 text-sm px-2.5 py-1 rounded-full">{tag}</span>
                             ))}
                         </div>
@@ -150,7 +150,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                             详细信息
                         </h3>
                         <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-white/60">文件名</span> <span>{item.file_name}</span></div>
+                            <div className="flex justify-between"><span className="text-white/60">文件名</span> <span>{item.name}</span></div>
                             {metadata.width && metadata.height && (
                                <div className="flex justify-between"><span className="text-white/60">分辨率</span> <span>{metadata.width} x {metadata.height}</span></div>
                             )}
