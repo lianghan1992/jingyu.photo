@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import type { MediaItem, ImageMetadata, VideoMetadata } from '../types';
 import {
@@ -21,7 +20,33 @@ interface ModalProps {
 
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
   const [showInfo, setShowInfo] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // State for progressive image loading and video loading
+  const [isVideoLoading, setIsVideoLoading] = useState(true);
+  const [imageSrc, setImageSrc] = useState('');
+  const [isHighResLoaded, setIsHighResLoaded] = useState(false);
+
+  useEffect(() => {
+    if (item.file_type === 'image') {
+      setIsHighResLoaded(false);
+      // Immediately show the small, cached thumbnail
+      const lowResSrc = `${item.thumbnailUrl}?size=small`;
+      setImageSrc(lowResSrc);
+
+      // Preload the high-resolution image in the background
+      const highResImg = new Image();
+      highResImg.src = `${item.url}?size=large`;
+      highResImg.onload = () => {
+        // Once loaded, update the src to trigger the transition
+        setImageSrc(highResImg.src);
+        setIsHighResLoaded(true);
+      };
+    } else {
+      // For videos, use a simple loading state
+      setIsVideoLoading(true);
+    }
+  }, [item.uid, item.file_type, item.url, item.thumbnailUrl]);
+
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -44,10 +69,6 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
   
-  // Reset loading state when item changes, this is crucial for navigation
-  useEffect(() => {
-    setIsLoading(true);
-  }, [item.uid]);
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -118,28 +139,28 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         <ChevronRightIcon className="w-8 h-8" />
       </button>
 
-      <div className="relative w-full h-full flex items-center justify-center p-16" onClick={(e) => e.stopPropagation()}>
-        {isLoading && <div className="text-white">加载中...</div>}
+      <div className="relative w-full h-full flex items-center justify-center p-0" onClick={(e) => e.stopPropagation()}>
         <div className="w-full h-full flex items-center justify-center">
             {item.file_type === 'image' ? (
             <img 
-                src={`${item.url}?size=large`}
+                src={imageSrc}
                 alt={item.file_name}
-                className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-                onLoad={() => setIsLoading(false)}
-                onError={() => setIsLoading(false)}
+                className={`max-h-full max-w-full object-contain transition-all duration-500 ease-in-out ${isHighResLoaded ? 'filter-none blur-0' : 'filter blur-lg scale-105'}`}
             />
             ) : (
-            <video
-                src={`${item.url}`}
-                controls
-                autoPlay
-                className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-                onLoadedData={() => setIsLoading(false)}
-                onError={() => setIsLoading(false)}
-            >
-                您的浏览器不支持视频标签。
-            </video>
+            <>
+              {isVideoLoading && <div className="text-white absolute">加载中...</div>}
+              <video
+                  src={`${item.url}`}
+                  controls
+                  autoPlay
+                  className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${isVideoLoading ? 'opacity-0' : 'opacity-100'}`}
+                  onLoadedData={() => setIsVideoLoading(false)}
+                  onError={() => setIsVideoLoading(false)}
+              >
+                  您的浏览器不支持视频标签。
+              </video>
+            </>
             )}
         </div>
       </div>
