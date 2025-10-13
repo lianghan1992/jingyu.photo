@@ -79,9 +79,13 @@ const MediaDisplay: React.FC<{ item: MediaItem; isActive: boolean }> = ({ item, 
       }
     };
 
-    loadMedia();
+    if (isActive) {
+        loadMedia();
+    } else {
+        setIsLoading(false); // Don't load inactive slides unless they become active
+    }
     return cleanup;
-  }, [item]);
+  }, [item, isActive]);
 
   useEffect(() => {
     // Handle video play/pause based on active state
@@ -90,6 +94,7 @@ const MediaDisplay: React.FC<{ item: MediaItem; isActive: boolean }> = ({ item, 
         videoRef.current.play().catch(e => console.warn("Autoplay was prevented.", e));
       } else {
         videoRef.current.pause();
+        videoRef.current.currentTime = 0; // Reset video on slide out
       }
     }
   }, [isActive]);
@@ -109,7 +114,7 @@ const MediaDisplay: React.FC<{ item: MediaItem; isActive: boolean }> = ({ item, 
           src={mediaSrc || undefined}
           controls
           autoPlay={isActive}
-          muted={!isActive} // Mute inactive videos to allow autoplay
+          muted // Always muted and controlled by `isActive` to avoid conflicting auto-plays
           loop
           playsInline
           className="max-w-full max-h-full object-contain"
@@ -256,17 +261,20 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
     const deltaX = e.touches[0].clientX - touchStartRef.current.x;
     const deltaY = e.touches[0].clientY - touchStartRef.current.y;
 
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    // Prioritize horizontal movement to prevent vertical scroll during swipe
+    if (Math.abs(deltaX) > Math.abs(deltaY) + 5) { // Add a small threshold
         e.preventDefault();
+        e.stopPropagation();
         setOffsetX(deltaX);
-    } else {
-        // Vertical scroll, cancel drag
+    } else if (Math.abs(deltaY) > Math.abs(deltaX) + 5) {
+        // If vertical scroll is intended, cancel the drag
         setIsDragging(false);
         setOffsetX(0);
     }
   };
   
   const handleTouchEnd = () => {
+    if (!isDragging) return;
     setIsDragging(false);
     const containerWidth = containerRef.current?.offsetWidth || window.innerWidth;
     const swipeThreshold = containerWidth / 4;
@@ -289,9 +297,7 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
   };
 
   const getFilmStripTransform = () => {
-    const baseOffset = -33.333; // Center the current item
-    // The width calculation is tricky, as it relies on CSS. 
-    // It's simpler to use pixels for the dynamic offset.
+    const baseOffset = -33.333333; // Center the current item
     return `translateX(calc(${baseOffset}% + ${offsetX}px))`;
   }
 
@@ -340,7 +346,7 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
             >
               <div
                 ref={filmStripRef}
-                className="flex h-full w-[300%] items-center"
+                className="flex h-full items-center"
                 style={{
                     transform: getFilmStripTransform(),
                     transition: isDragging ? 'none' : 'transform 0.3s ease-out',
@@ -348,8 +354,8 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
                 onTransitionEnd={handleTransitionEnd}
               >
                 {[prevItem, currentItem, nextItem].map((item, index) => (
-                    <div key={item ? item.uid : `empty-${index}`} className="w-1/3 h-full flex-shrink-0 flex items-center justify-center p-2">
-                        {item && <MediaDisplay item={item} isActive={index === 1 && !isDragging} />}
+                    <div key={item ? item.uid : `empty-${index}`} className="w-full h-full flex-shrink-0 flex items-center justify-center p-2">
+                        {item && <MediaDisplay item={item} isActive={index === 1} />}
                     </div>
                 ))}
               </div>
