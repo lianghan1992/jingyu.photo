@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import type { MediaItem, ImageMetadata, VideoMetadata } from '../types';
 import { CloseIcon, DownloadIcon, InfoIcon, TagIcon, HeartIcon, HeartSolidIcon, ChevronLeftIcon, ChevronRightIcon } from './Icons';
@@ -26,45 +26,62 @@ const formatDuration = (seconds: number): string => {
 };
 
 const MetadataDisplay: React.FC<{ item: MediaItem }> = ({ item }) => {
-  if (!item.metadata) return null;
+  if (!item.metadata) {
+    return (
+      <div className="text-center py-4">
+        <InfoIcon className="w-8 h-8 mx-auto text-zinc-400 mb-2" />
+        <p className="text-zinc-500 text-sm">无可用元数据。</p>
+      </div>
+    );
+  }
 
-  const metadata = item.metadata;
   const infoItems: { label: string, value: React.ReactNode }[] = [];
+  const metadata = item.metadata;
 
   if (item.type === 'image') {
     const imgMeta = metadata as ImageMetadata;
-    if (imgMeta.cameraModel) infoItems.push({ label: '相机', value: `${imgMeta.cameraMake || ''} ${imgMeta.cameraModel}`.trim() });
-    const photoDetails = [imgMeta.focalLength, imgMeta.aperture, imgMeta.shutterSpeed, imgMeta.iso ? `ISO ${imgMeta.iso}` : null].filter(Boolean).join(' ');
-    if (photoDetails) infoItems.push({ label: '参数', value: photoDetails });
-    if (imgMeta.width && imgMeta.height) infoItems.push({ label: '尺寸', value: `${imgMeta.width} x ${imgMeta.height}` });
-
+    if (imgMeta.width && imgMeta.height) infoItems.push({ label: '尺寸', value: `${imgMeta.width} × ${imgMeta.height}` });
+    if (imgMeta.cameraMake || imgMeta.cameraModel) infoItems.push({ label: '相机', value: `${imgMeta.cameraMake || ''} ${imgMeta.cameraModel || ''}`.trim() });
+    if (imgMeta.focalLength) infoItems.push({ label: '焦距', value: imgMeta.focalLength });
+    if (imgMeta.aperture) infoItems.push({ label: '光圈', value: imgMeta.aperture });
+    if (imgMeta.shutterSpeed) infoItems.push({ label: '快门', value: imgMeta.shutterSpeed });
+    if (imgMeta.iso) infoItems.push({ label: 'ISO', value: String(imgMeta.iso) });
   } else if (item.type === 'video') {
     const vidMeta = metadata as VideoMetadata;
+    if (vidMeta.width && vidMeta.height) infoItems.push({ label: '分辨率', value: `${vidMeta.width} × ${vidMeta.height}` });
     if (vidMeta.duration) infoItems.push({ label: '时长', value: formatDuration(vidMeta.duration) });
-    if (vidMeta.width && vidMeta.height) infoItems.push({ label: '分辨率', value: `${vidMeta.width} x ${vidMeta.height}` });
+    if (vidMeta.fps) infoItems.push({ label: '帧率', value: `${vidMeta.fps} FPS` });
+  }
+  
+  if (infoItems.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <InfoIcon className="w-8 h-8 mx-auto text-zinc-400 mb-2" />
+        <p className="text-zinc-500 text-sm">无可用元数据。</p>
+      </div>
+    );
   }
 
-  if (infoItems.length === 0) return null;
-
   return (
-    <div>
-      <h3 className="flex items-center gap-2 text-sm font-semibold mb-3 text-zinc-500 uppercase tracking-wider">
-        <InfoIcon className="w-5 h-5"/> 详细信息
-      </h3>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        {infoItems.map(({ label, value }) => (
-          <React.Fragment key={label}>
-            <div className="font-medium text-zinc-600">{label}</div>
-            <div className="text-zinc-800 truncate">{value}</div>
-          </React.Fragment>
-        ))}
-      </div>
+    <div className="space-y-3 text-sm">
+      {infoItems.map(({ label, value }) => (
+        <div key={label} className="grid grid-cols-3 gap-2 items-center">
+          <span className="font-medium text-zinc-500 col-span-1">{label}</span>
+          <span className="text-zinc-800 text-right truncate col-span-2" title={String(value)}>{value}</span>
+        </div>
+      ))}
     </div>
   );
 };
 
 
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
+  const [activeTab, setActiveTab] = useState<'ai' | 'details'>('ai');
+  
+  useEffect(() => {
+    setActiveTab('ai');
+  }, [item]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -79,7 +96,6 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
-  // The backend now provides the full, correct URL, so we use it directly.
   const mediaUrl = item.url;
 
   const formattedDate = () => {
@@ -89,8 +105,21 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     return date.toLocaleString('zh-CN', { dateStyle: 'long', timeStyle: 'short' });
   };
 
+  const TabButton: React.FC<{tab: 'ai' | 'details', label: string}> = ({tab, label}) => (
+    <button
+        onClick={() => setActiveTab(tab)}
+        className={`flex-1 py-2.5 text-sm font-semibold transition-colors focus:outline-none ${
+            activeTab === tab 
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-zinc-500 hover:text-zinc-800 border-b-2 border-transparent'
+        }`}
+    >
+        {label}
+    </button>
+  );
+
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onClose} role="dialog" aria-modal="true">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col md:flex-row overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Media Display */}
         <div className="relative flex-grow h-2/3 md:h-full md:w-3/4 bg-black flex items-center justify-center">
@@ -105,12 +134,12 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         </div>
 
         {/* Sidebar Info */}
-        <div className="w-full md:w-1/4 h-1/3 md:h-full flex flex-col p-6 overflow-y-auto bg-zinc-50 border-l border-zinc-200">
-          <div className="flex-grow">
-            <h2 className="text-2xl font-bold mb-1 text-zinc-900">{item.aiTitle || item.name}</h2>
+        <div className="w-full md:w-1/4 h-1/3 md:h-full flex flex-col bg-zinc-50 border-l border-zinc-200">
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-1 text-zinc-900 break-words">{item.aiTitle || item.name}</h2>
             <p className="text-zinc-500 text-sm mb-6">{formattedDate()}</p>
             
-            <div className="flex items-center gap-2 mb-8">
+            <div className="flex items-center gap-2 mb-2">
               <button onClick={() => onToggleFavorite(item.uid)} className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors text-zinc-700">
                 {item.isFavorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5 text-zinc-500" />}
                 <span className="font-semibold text-sm">{item.isFavorite ? '已收藏' : '收藏'}</span>
@@ -120,20 +149,32 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                 <span className="font-semibold text-sm">下载</span>
               </a>
             </div>
+          </div>
+          
+          <div className="border-b border-t border-zinc-200 px-4">
+              <div className="flex">
+                  <TabButton tab="ai" label="AI 摘要" />
+                  <TabButton tab="details" label="详细信息" />
+              </div>
+          </div>
 
-            <div className="space-y-6">
-                {item.aiTags && item.aiTags.length > 0 && (
-                  <div className="pb-6 border-b border-zinc-200">
-                      <h3 className="flex items-center gap-2 text-sm font-semibold mb-3 text-zinc-500 uppercase tracking-wider"><TagIcon className="w-5 h-5"/> AI 标签</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {item.aiTags.map(tag => <span key={tag} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-full">{tag}</span>)}
-                      </div>
+          <div className="flex-grow p-6 overflow-y-auto">
+            {activeTab === 'ai' ? (
+              <div>
+                {item.aiTags && item.aiTags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {item.aiTags.map(tag => <span key={tag} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-full">{tag}</span>)}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <TagIcon className="w-8 h-8 mx-auto text-zinc-400 mb-2" />
+                    <p className="text-zinc-500 text-sm">暂无 AI 标签。</p>
                   </div>
                 )}
-                
-                <MetadataDisplay item={item} />
-            </div>
-
+              </div>
+            ) : (
+              <MetadataDisplay item={item} />
+            )}
           </div>
         </div>
       </div>
