@@ -11,6 +11,9 @@ import {
   TagIcon
 } from './Icons';
 
+// To satisfy TypeScript, since hls.js is loaded from a script tag.
+declare const Hls: any;
+
 interface ModalProps {
   item: MediaItem;
   onClose: () => void;
@@ -20,6 +23,7 @@ interface ModalProps {
 
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -37,6 +41,39 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose, onNavigate]);
+  
+  useEffect(() => {
+    if (item.type !== 'video' || !videoRef.current) {
+      return;
+    }
+
+    const videoElement = videoRef.current;
+    let hlsInstance: any | null = null;
+
+    if (item.hlsPlaybackUrl) {
+      if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+        hlsInstance = new Hls();
+        hlsInstance.loadSource(item.hlsPlaybackUrl);
+        hlsInstance.attachMedia(videoElement);
+      } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS support (e.g., Safari)
+        videoElement.src = item.hlsPlaybackUrl;
+      } else {
+        // Fallback to direct URL if HLS is not supported at all
+        videoElement.src = item.url;
+      }
+    } else {
+      // No HLS URL, use direct URL
+      videoElement.src = item.url;
+    }
+
+    return () => {
+      if (hlsInstance) {
+        hlsInstance.destroy();
+      }
+    };
+  }, [item]);
+
 
   const handleFavoriteClick = () => {
     onToggleFavorite(item.uid);
@@ -107,7 +144,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     />
                 ) : (
                     <video 
-                        src={item.hlsPlaybackUrl || item.url} 
+                        ref={videoRef}
                         controls 
                         autoPlay 
                         className="max-w-full max-h-full object-contain"
