@@ -43,7 +43,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
 
   useEffect(() => {
     setIsLoading(true);
-    if (item.type === 'image') {
+    if (item.file_type === 'image') {
       setIsHighResLoaded(false);
       const lowResSrc = `${item.thumbnailUrl}?size=small`;
       setImageSrc(lowResSrc);
@@ -62,7 +62,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         setIsHighResLoaded(true);
         setIsLoading(false);
       }
-    } else if (item.type === 'video' && videoRef.current) {
+    } else if (item.file_type === 'video' && videoRef.current) {
         const video = videoRef.current;
         const hlsUrl = item.hlsPlaybackUrl;
 
@@ -80,7 +80,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
             video.play().catch(e => console.error("Autoplay was prevented.", e));
         }
     }
-  }, [item.uid, item.type, item.url, item.thumbnailUrl, item.hlsPlaybackUrl]);
+  }, [item.uid, item.file_type, item.url, item.thumbnailUrl, item.hlsPlaybackUrl]);
 
 
   // Keyboard navigation
@@ -118,11 +118,11 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
 
   // Type guards for metadata
   const isImageMetadata = (metadata: any): metadata is ImageMetadata => {
-    return item.type === 'image' && metadata !== null && typeof metadata === 'object';
+    return item.file_type === 'image' && metadata !== null && typeof metadata === 'object';
   };
 
   const isVideoMetadata = (metadata: any): metadata is VideoMetadata => {
-    return item.type === 'video' && metadata !== null && typeof metadata === 'object';
+    return item.file_type === 'video' && metadata !== null && typeof metadata === 'object';
   };
   
   const formatDate = (dateString: string) => {
@@ -139,8 +139,9 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
   };
 
   const renderMetadata = () => {
-    if (isImageMetadata(item.metadata)) {
-      const meta = item.metadata;
+    const metadata = item.media_metadata;
+    if (isImageMetadata(metadata)) {
+      const meta = metadata;
       return (
         <>
           <MetadataRow label="尺寸" value={meta.width && meta.height ? `${meta.width} x ${meta.height}` : null} />
@@ -152,8 +153,8 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         </>
       );
     }
-    if (isVideoMetadata(item.metadata)) {
-      const meta = item.metadata;
+    if (isVideoMetadata(metadata)) {
+      const meta = metadata;
       return (
         <>
           <MetadataRow label="尺寸" value={meta.width && meta.height ? `${meta.width} x ${meta.height}` : null} />
@@ -175,17 +176,17 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     >
       <div className="absolute top-0 right-0 left-0 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent z-10" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col min-w-0">
-            <h2 id="media-title" className="text-white text-lg font-semibold truncate">{item.aiTitle || item.name}</h2>
-            <p className="text-gray-300 text-sm">{formatDate(item.date)}</p>
+            <h2 id="media-title" className="text-white text-lg font-semibold truncate">{item.ai_title || item.file_name}</h2>
+            <p className="text-gray-300 text-sm">{formatDate(item.media_created_at)}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={() => setShowInfo(!showInfo)} className={`p-2 rounded-full transition-colors ${showInfo ? 'bg-blue-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`} aria-label="Show info">
                 <InfoIcon className="w-6 h-6" />
             </button>
             <button onClick={handleFavoriteClick} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Toggle favorite">
-                {item.isFavorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
+                {item.is_favorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
             </button>
-            <a href={`${item.downloadUrl}`} download={item.name} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Download media">
+            <a href={`${item.downloadUrl}`} download={item.file_name} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Download media">
                 <DownloadIcon className="w-6 h-6" />
             </a>
             <button onClick={onClose} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Close modal">
@@ -204,10 +205,10 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       <div className="relative w-full h-full flex items-center justify-center p-0" onClick={(e) => e.stopPropagation()}>
         <div className="w-full h-full flex items-center justify-center">
             {isLoading && <div className="text-white absolute text-lg">加载中...</div>}
-            {item.type === 'image' ? (
+            {item.file_type === 'image' ? (
               <img 
                   src={imageSrc}
-                  alt={item.name}
+                  alt={item.file_name}
                   className={`max-h-full max-w-full object-contain transition-all duration-500 ease-in-out ${isLoading ? 'opacity-0' : 'opacity-100'} ${isHighResLoaded ? 'filter-none blur-0' : 'filter blur-lg'}`}
               />
             ) : (
@@ -238,13 +239,13 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
             </div>
             
             <div className="space-y-4 text-sm text-gray-200">
-                <MetadataRow label="文件名" value={item.name} />
+                <MetadataRow label="文件名" value={item.file_name} />
                 
-                {item.aiTags && item.aiTags.length > 0 && (
+                {item.ai_tags && item.ai_tags.length > 0 && (
                     <div>
                         <strong>AI 标签:</strong>
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {item.aiTags.map(tag => (
+                            {item.ai_tags.map(tag => (
                                 <span key={tag} className="flex items-center gap-1.5 bg-gray-700 text-gray-200 px-2.5 py-1 rounded-full text-xs">
                                     <TagIcon className="w-3 h-3" />
                                     {tag}
