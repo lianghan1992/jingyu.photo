@@ -177,8 +177,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     const url = await fetchAuthenticatedBlobUrl(item.url);
                     if (isMounted) {
                         objectUrl = url;
-                        videoElement.src = url;
-                        setMediaSrc(url); // Trigger re-render
+                        setMediaSrc(url);
                     }
                 }
             }
@@ -268,6 +267,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     {item.fileType === 'video' && (
                         <video 
                             ref={videoRef}
+                            src={item.hlsPlaybackUrl ? undefined : mediaSrc || ''}
                             controls 
                             autoPlay 
                             className="max-w-full max-h-full object-contain"
