@@ -42,13 +42,15 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     onToggleFavorite(item.uid);
   };
   
-  const formattedDate = new Date(item.date.replace(' ', 'T')).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const formattedDate = item.date
+    ? new Date(item.date.replace(' ', 'T')).toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '未知日期';
 
   const metadata = item.metadata;
   const isImage = item.type === 'image';
