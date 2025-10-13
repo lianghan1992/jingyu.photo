@@ -1,55 +1,42 @@
-# 璟聿.today - 后端API文档 v2.1
+# 璟聿.today - 后端API文档 v2.3
 
-**版本**: 2.1
+**版本**: 2.3
 **最后更新**: 2025-10-13
 
-## 1. 核心概念
+## 1. 介绍
 
-### 1.1. 核心工作流
+欢迎使用 `璟聿.today` 后端API。本文档为前端开发者提供与API交互所需的所有信息。API遵循RESTful原则，使用标准的HTTP方法和状态码，所有数据交换均采用JSON格式。
 
-本API的核心是将物理文件系统中的媒体文件，转化为一个带有丰富元数据、可供前端消费的结构化信息库。整个过程高度自动化，其工作流如下：
-
-1.  **文件监控**: `watchdog` 服务在后台实时监控 `.env` 中配置的 `MEDIA_LIBRARY_PATH` 目录。
-2.  **变更检测**: 当一个新文件被添加（或修改完成）时，服务会获取该文件的路径。
-3.  **扫描与入库**: 程序对新文件进行处理：
-    *   生成一个基于文件路径的唯一ID (`uid`)。
-    *   检查数据库，确认该 `uid` 是否已存在，避免重复处理。
-    *   提取文件的基本信息（文件名、路径、类型）和元数据（EXIF、视频时长等）。
-    *   生成三种尺寸的 `WebP` 格式缩略图。
-    *   将包含所有上述信息的新 `MediaItem` 记录存入数据库。
-4.  **AI内容分析**: 扫描完成后，系统会自动触发AI处理任务，为所有新入库且未被分析过的图片，调用智谱AI接口生成标题和标签，并更新到对应的 `MediaItem` 记录中。
-5.  **API就绪**: 一旦数据入库，前端即可通过 `GET /api/media` 接口查询到该媒体项。
-
-### 1.2. 标准化错误响应
-
-所有API在遇到客户端或服务器错误时，都会返回一个标准化的JSON错误对象。前端应捕获HTTP状态码并解析响应体以获取详细错误信息。
-
-**HTTP状态码**: 
-
-- `400 Bad Request`: 请求参数无效（例如，类型错误、超出范围）。
-- `404 Not Found`: 请求的资源不存在。
-- `409 Conflict`: 请求与服务器当前状态冲突（例如，尝试启动一个已在运行的任务）。
-- `500 Internal Server Error`: 服务器内部发生未知错误。
-
-**标准错误结构**:
-
-```json
-{
-  "error": {
-    "code": "ERROR_CODE_STRING",
-    "message": "对错误的详细、可读的描述。"
-  }
-}
-```
+- **基础URL**: `http://<your_server_ip>:24116/api`
+- **认证**: 当前所有端点均为开放访问，无需认证。
 
 ---
 
-## 2. 数据模型
+## 2. 核心工作流: 从文件到API
 
-### 2.1. MediaItem 对象
+理解数据如何被处理是有效使用API的关键。以下是一个媒体文件从磁盘到API响应的完整生命周期：
 
-这是API返回的最核心的数据对象，代表一个媒体文件。
+1.  **文件监控**: 服务启动后，一个后台进程 (`watchdog`) 会持续监控您在 `.env` 文件中 `MEDIA_LIBRARY_PATH` 指定的目录。
+2.  **事件触发**: 当您向该目录中添加一个新文件时，监控器会捕捉到“文件创建”事件。
+3.  **扫描入库**: 程序对新文件执行扫描：
+    *   为文件路径生成一个唯一的MD5哈希作为 `uid`。
+    *   查询数据库，若 `uid` 已存在则跳过，防止重复处理。
+    *   获取文件大小 (`file_size`)，若为空文件则跳过。
+    *   提取媒体元数据（EXIF/视频信息）和创建时间。
+    *   调用 `Pillow` 或 `FFmpeg` 生成三种尺寸 (`small`, `medium`, `large`) 的WebP格式缩略图。
+    *   将包含所有上述信息的新记录（`MediaItem`）插入到PostgreSQL数据库中。
+4.  **AI分析**: 在扫描任务的最后阶段，会自动触发一个并行的AI分析任务。该任务会查找所有尚未被AI处理过的图片，调用智谱AI接口为其生成标题和标签，然后将结果更新回数据库。
+5.  **API就绪**: 一旦 `MediaItem` 记录被存入数据库，它就可以立即通过API被查询到。即使此时AI分析尚未完成（`aiTitle` 和 `aiTags` 可能为 `null`），前端也可以先展示图片和基本信息。
 
+---
+
+## 3. 数据模型详解
+
+### 3.1. MediaItem 对象
+
+API返回的最核心的数据对象，代表一个媒体文件。
+
+**示例JSON**
 ```json
 {
   "uid": "a8c3f1b7e4d9a2c1b3e4f5a6b7c8d9e0",
@@ -66,210 +53,178 @@
     "width": 4032,
     "height": 3024,
     "cameraMake": "Apple",
-    "cameraModel": "iPhone 13 Pro",
-    "focalLength": "5.7mm",
-    "aperture": "f/1.5",
-    "shutterSpeed": "1/120",
-    "iso": 50
+    "cameraModel": "iPhone 13 Pro"
   }
 }
 ```
 
-**字段详解**:
+**字段详解**
 
-| 字段 | 类型 | 是否可为空 | 描述 |
-| :--- | :--- | :--- | :--- |
-| `uid` | string | 否 | 媒体项的唯一标识符，由文件路径MD5生成。 |
-| `name` | string | 否 | 原始文件名。 |
-| `date` | string | 否 | 媒体的拍摄日期 (ISO 8601 格式)。优先使用EXIF中的拍摄日期，否则回退到文件系统的创建或修改日期。 |
-| `type` | string | 否 | 媒体类型, `"image"` 或 `"video"`。 |
-| `isFavorite` | boolean | 否 | `true` 表示已收藏。 |
-| `url` | string | 否 | 用于在前端直接预览的原始文件URL。这是一个相对路径，前端应将其与服务器地址拼接。 |
-| `thumbnailUrl` | string | 否 | **基础**缩略图URL。前端应根据需要附加 `?size=small|medium|large` 参数来获取具体尺寸的缩略图。 |
-| `downloadUrl` | string | 否 | 用于下载原始文件的完整API路径。 |
-| `aiTitle` | string | 是 | AI生成的单句中文标题。如果尚未处理或处理失败，则为 `null`。 |
-| `aiTags` | array[string] | 是 | AI生成的中文标签列表。如果尚未处理或处理失败，则为 `null`。 |
-| `metadata` | object | 否 | 媒体元数据，其结构取决于 `type` 字段。 |
+| 字段 | 数据类型 | 描述 |
+| :--- | :--- | :--- |
+| `uid` | `string` | 媒体项的唯一标识符。 |
+| `name` | `string` | 原始文件名。 |
+| `date` | `string` (ISO 8601) | 媒体的拍摄日期。 |
+| `type` | `string` | 媒体类型, `"image"` 或 `"video"`。 |
+| `isFavorite` | `boolean` | `true` 表示已收藏。 |
+| `url` | `string` | 用于前端预览的原始文件URL。 |
+| `thumbnailUrl` | `string` | **基础**缩略图URL。前端应附加 `?size=` 参数。 |
+| `downloadUrl` | `string` | 用于下载原始文件的API路径。 |
+| `aiTitle` | `string` or `null` | AI生成的单句中文标题。若处理失败，会显示`[AI处理失败: ...]`等错误信息。 |
+| `aiTags` | `array[string]` or `null` | AI生成的中文标签列表。 |
+| `metadata` | `object` | 媒体元数据，见下文。 |
 
-### 2.2. Metadata (元数据) 对象
+### 3.2. StatsResponse 对象
 
-**当 `type` 为 `"image"` 时**:
+`GET /api/stats` 接口的响应体。
 
-| 字段 | 类型 | 是否可为空 | 描述 |
-| :--- | :--- | :--- | :--- |
-| `width` | integer | 否 | 宽度（像素）。 |
-| `height` | integer | 否 | 高度（像素）。 |
-| `cameraMake` | string | 是 | 相机制造商 (e.g., `"Apple"`)。 |
-| `cameraModel` | string | 是 | 相机型号 (e.g., `"iPhone 13 Pro"`)。 |
-| `focalLength` | string | 是 | 焦距 (e.g., `"5.7mm"`)。 |
-| `aperture` | string | 是 | 光圈 (e.g., `"f/1.5"`)。 |
-| `shutterSpeed` | string | 是 | 快门速度 (e.g., `"1/120"`)。 |
-| `iso` | integer | 是 | ISO感光度。 |
+**示例JSON**
+```json
+{
+  "total": {
+    "count": 58,
+    "size": 278394251
+  },
+  "photo": {
+    "count": 45,
+    "size": 198349201
+  },
+  "video": {
+    "count": 13,
+    "size": 80045050
+  }
+}
+```
 
-**当 `type` 为 `"video"` 时**:
+**字段详解**
 
-| 字段 | 类型 | 是否可为空 | 描述 |
-| :--- | :--- | :--- | :--- |
-| `width` | integer | 否 | 宽度（像素）。 |
-| `height` | integer | 否 | 高度（像素）。 |
-| `duration` | float | 否 | 时长（秒）。 |
-| `fps` | integer | 是 | 帧率。 |
+| 字段 | 数据类型 | 描述 |
+| :--- | :--- | :--- |
+| `total.count` | `integer` | 媒体文件总数。 |
+| `total.size` | `integer` | 媒体文件总体积 (bytes)。 |
+| `photo.count` | `integer` | 照片总数。 |
+| `photo.size` | `integer` | 照片总体积 (bytes)。 |
+| `video.count` | `integer` | 视频总数。 |
+| `video.size` | `integer` | 视频总体积 (bytes)。 |
 
 ---
 
-## 3. API 端点详解
+## 4. API 端点详解
 
-### 3.1. 媒体 (Media)
+### 4.1. `GET /api/media`
 
-#### **获取媒体列表**
+**功能**: 获取媒体文件列表，支持分页、排序和多种条件过滤。
 
-获取媒体文件列表，支持强大的分页、排序和过滤功能。
+**请求**
+`GET http://localhost:24116/api/media`
 
-- `GET /api/media`
+**查询参数**
 
-**查询参数**:
-
-| 参数 | 类型 | 默认值 | 约束 | 描述 |
+| 参数 | 类型 | 必需? | 默认值 | 描述 |
 | :--- | :--- | :--- | :--- | :--- |
-| `page` | integer | 1 | `> 0` | 请求的页码。 |
-| `pageSize` | integer | 20 | `1-100` | 每页返回的项目数。 |
-| `sort` | string | `newest` | `"newest"`, `"oldest"` | 按媒体拍摄日期排序。 |
-| `type` | string | `null` | `"image"`, `"video"` | 按媒体类型过滤。 |
-| `favoritesOnly`| boolean | `false` | `true`, `false` | `true`时仅返回收藏项。 |
-| `search` | string | `null` | | 关键词，将模糊匹配文件名、AI标题和AI标签。 |
-| `folder` | string | `null` | | 文件夹的绝对路径，用于筛选特定目录下的媒体。 |
+| `page` | `integer` | 否 | `1` | 请求的页码，必须是 `> 0` 的整数。 |
+| `pageSize` | `integer` | 否 | `20` | 每页返回的项目数，范围 `1-100`。 |
+| `sort` | `string` | 否 | `newest` | 排序方式。`newest` (最新) 或 `oldest` (最旧)。 |
+| `type` | `string` | 否 | `null` | 按媒体类型过滤。`image` 或 `video`。 |
+| `favoritesOnly`| `boolean` | 否 | `false` | `true`时仅返回收藏项。 |
+| `search` | `string` | 否 | `null` | 搜索关键词，将匹配文件名、AI标题和AI标签。 |
+| `folder` | `string` | 否 | `null` | 按文件夹的绝对路径进行过滤。 |
 
-**CURL 示例**:
-
-```bash
-# 获取第2页，每页10个，仅包含被收藏的图片
-curl -X GET "http://localhost:24116/api/media?page=2&pageSize=10&type=image&favoritesOnly=true"
-```
-
-**成功响应 (`200 OK`)**:
-
-```json
-{
-  "total": 150,
-  "page": 2,
-  "pageSize": 10,
-  "items": [ /* MediaItem 对象数组 */ ]
-}
-```
-
-**失败响应 (`400 Bad Request`)**:
-
-```json
-// 请求: /api/media?page=0
-{
-  "error": {
-    "code": "INVALID_PARAMETER",
-    "message": "Query parameter 'page' must be greater than 0."
+**响应**
+- **`200 OK`**: 请求成功。
+  ```json
+  {
+    "total": 1250,         // (integer) 满足当前过滤条件的总项目数
+    "page": 1,            // (integer) 当前页码
+    "pageSize": 10,         // (integer) 每页的项目数
+    "items": [            // (array) MediaItem 对象数组
+      { /* ... MediaItem ... */ }
+    ]
   }
-}
-```
-
-#### **获取响应式缩略图**
-
-获取指定媒体项的特定尺寸的WebP格式缩略图。
-
-- `GET /api/thumbnails/{uid}`
-
-**CURL 示例**:
-
-```bash
-# 获取UID为 ...d9e0 的小尺寸缩略图，并保存为 a.webp
-curl -X GET "http://localhost:24116/api/thumbnails/a8c3f1b7e4d9a2c1b3e4f5a6b7c8d9e0?size=small" -o a.webp
-```
-
-**成功响应 (`200 OK`)**: 响应体为 `image/webp` 格式的二进制图片数据。
-
-**失败响应 (`404 Not Found`)**:
-
-```json
-{
-  "error": {
-    "code": "NOT_FOUND",
-    "message": "Thumbnail not found."
+  ```
+- **`400 Bad Request`**: 请求参数无效。
+  ```json
+  {
+    "error": {
+      "code": "INVALID_PARAMETER",
+      "message": "请求参数无效。",
+      "details": [ /* pydantic error details */ ]
+    }
   }
-}
-```
+  ```
 
-#### **收藏与取消收藏**
-
-- **收藏**: `POST /api/media/{uid}/favorite`
-- **取消收藏**: `DELETE /api/media/{uid}/favorite`
-
-**CURL 示例**:
-
+**CURL示例**
 ```bash
-curl -X POST http://localhost:24116/api/media/a8c3f1b7e4d9a2c1b3e4f5a6b7c8d9e0/favorite
+curl -X GET "http://localhost:24116/api/media?pageSize=5&type=video"
 ```
 
-**成功响应 (`204 No Content`)**: 响应体为空，表示操作成功。
+### 4.2. `GET /api/stats`
 
-**失败响应 (`404 Not Found`)**: 如果 `uid` 不存在，返回标准404错误。
+**功能**: 提供关于媒体库构成的详细统计数据，支持按时间筛选。
 
-#### **下载原始文件**
+**请求**
+`GET http://localhost:24116/api/stats`
 
-- `GET /api/media/{uid}/download`
+**查询参数**
 
-**CURL 示例**:
+| 参数 | 类型 | 必需? | 描述 |
+| :--- | :--- | :--- | :--- |
+| `year` | `integer` | 否 | 按年份筛选，例如 `2024`。 |
+| `month`| `integer` | 否 | 按月份筛选，例如 `5`。需与 `year` 参数一同使用。 |
 
+**响应**
+- **`200 OK`**: 请求成功。
+  ```json
+  {
+    "total": { "count": 58, "size": 278394251 },
+    "photo": { "count": 45, "size": 198349201 },
+    "video": { "count": 13, "size": 80045050 }
+  }
+  ```
+
+**CURL示例**
 ```bash
-curl -X GET http://localhost:24116/api/media/a8c3f1b7e4d9a2c1b3e4f5a6b7c8d9e0/download --output original_file.jpg
+curl -X GET "http://localhost:24116/api/stats?year=2024"
 ```
 
-**成功响应 (`200 OK`)**: 响应体为原始文件流 (`application/octet-stream`)，浏览器将触发下载。
+### 4.3. `GET /api/thumbnails/{uid}`
 
-### 3.2. 分类 (Taxonomy)
+**功能**: 获取指定媒体项的特定尺寸的WebP格式缩略图。
 
-#### **获取所有文件夹**
+**请求**
+`GET http://localhost:24116/api/thumbnails/{uid}`
 
-- `GET /api/folders`
+**查询参数**
 
-**CURL 示例**:
+| 参数 | 类型 | 必需? | 默认值 | 描述 |
+| :--- | :--- | :--- | :--- | :--- |
+| `size` | `string` | 否 | `medium` | 缩略图尺寸。`small`, `medium`, `large`。 |
 
+**响应**
+- **`200 OK`**: `image/webp` 格式的二进制图片数据。
+- **`404 Not Found`**: 如果 `uid` 或对应的缩略图文件不存在。
+  ```json
+  {
+    "error": {
+      "code": "NOT_FOUND",
+      "message": "缩略图未找到。"
+    }
+  }
+  ```
+
+**CURL示例**
 ```bash
-curl -X GET http://localhost:24116/api/folders
+curl -X GET "http://localhost:24116/api/thumbnails/a8c3f1b7e4d9a2c1b3e4f5a6b7c8d9e0?size=large" -o large_thumb.webp
 ```
 
-**成功响应 (`200 OK`)**: 返回一个包含所有文件夹绝对路径的JSON字符串数组。
+### 4.4. 其他端点
 
-```json
-[
-  "/media/photos/2023/Vacation",
-  "/media/photos/2024/Family"
-]
-```
-
-### 3.3. 后台任务 (Tasks)
-
-#### **触发媒体扫描**
-
-- `POST /api/scan`
-
-**成功响应 (`202 Accepted`)**: `{"message": "Media library scan initiated."}`
-
-**失败响应 (`409 Conflict`)**: `{"error": {"code": "TASK_IN_PROGRESS", "message": "A media scan is already in progress."}}`
-
-#### **触发AI处理**
-
-- `POST /api/ai/process`
-
-**成功响应 (`202- Accepted`)**: `{"message": "AI processing initiated."}`
-
-**失败响应 (`409 Conflict`)**: `{"error": {"code": "TASK_IN_PROGRESS", "message": "An AI processing job is already in progress."}}`
-
-#### **获取任务状态**
-
-- `GET /api/status`
-
-**成功响应 (`200 OK`)**:
-
-```json
-{
-  "is_scanning": false,
-  "is_ai_processing": true
-}
-```
+| 功能 | 端点 | 方法 | 描述 |
+| :--- | :--- | :--- | :--- |
+| 收藏媒体项 | `/api/media/{uid}/favorite` | `POST` | 将指定媒体项标记为收藏。成功返回 `204 No Content`。 |
+| 取消收藏 | `/api/media/{uid}/favorite` | `DELETE`| 取消指定媒体项的收藏状态。成功返回 `204 No Content`。 |
+| 下载原始文件 | `/api/media/{uid}/download` | `GET` | 下载原始媒体文件。 |
+| 获取所有文件夹 | `/api/folders` | `GET` | 获取一个包含所有媒体文件夹路径的列表。 |
+| 获取任务状态 | `/api/status` | `GET` | 查询后台扫描和AI任务的当前运行状态。 |
+| 手动触发扫描 | `/api/scan` | `POST` | 手动启动一次全量扫描任务。 |
+| 手动触发AI处理| `/api/ai/process` | `POST` | 手动启动一次AI分析任务。 |

@@ -79,15 +79,24 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
+  const mediaUrl = item.url;
+
+  const formattedDate = () => {
+    if (!item.date) return '未知日期';
+    const date = new Date(item.date);
+    if (isNaN(date.getTime())) return '未知日期';
+    return date.toLocaleString('zh-CN', { dateStyle: 'long', timeStyle: 'short' });
+  };
+
   return ReactDOM.createPortal(
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onClose} role="dialog" aria-modal="true">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col md:flex-row overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Media Display */}
         <div className="relative flex-grow h-2/3 md:h-full md:w-3/4 bg-black flex items-center justify-center">
           {item.type === 'video' ? (
-            <video src={item.url} controls autoPlay className="max-h-full max-w-full object-contain" />
+            <video src={mediaUrl} controls autoPlay className="max-h-full max-w-full object-contain" />
           ) : (
-            <img src={item.url} alt={item.name} className="max-h-full max-w-full object-contain" />
+            <img src={mediaUrl} alt={item.name} className="max-h-full max-w-full object-contain" />
           )}
           <button onClick={onClose} className="absolute top-4 right-4 text-white bg-black/30 p-2 rounded-full hover:bg-black/50 transition-colors" aria-label="Close">
             <CloseIcon className="w-6 h-6" />
@@ -98,7 +107,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         <div className="w-full md:w-1/4 h-1/3 md:h-full flex flex-col p-6 overflow-y-auto bg-zinc-50 border-l border-zinc-200">
           <div className="flex-grow">
             <h2 className="text-2xl font-bold mb-1 text-zinc-900">{item.aiTitle || item.name}</h2>
-            <p className="text-zinc-500 text-sm mb-6">{new Date(item.date).toLocaleString('zh-CN', { dateStyle: 'long', timeStyle: 'short' })}</p>
+            <p className="text-zinc-500 text-sm mb-6">{formattedDate()}</p>
             
             <div className="flex items-center gap-2 mb-8">
               <button onClick={() => onToggleFavorite(item.uid)} className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors text-zinc-700">

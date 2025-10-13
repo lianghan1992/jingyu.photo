@@ -94,8 +94,9 @@ const App: React.FC = () => {
     }
 
     return mediaItems.reduce((acc, item) => {
-      const date = new Date(item.date);
-      const dateKey = !isNaN(date.getTime()) 
+      const dateStr = item.date;
+      const date = dateStr ? new Date(dateStr) : null;
+      const dateKey = (date && !isNaN(date.getTime()))
         ? date.toLocaleDateString('zh-CN', options)
         : '未知日期';
 
