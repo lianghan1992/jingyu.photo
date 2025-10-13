@@ -32,6 +32,81 @@ const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
   );
 };
 
+// Component for the details content, used in both desktop sidebar and mobile bottom sheet
+const DetailsPanelContent: React.FC<Pick<ModalProps, 'item' | 'onToggleFavorite'>> = ({ item, onToggleFavorite }) => {
+    const formattedDate = item.mediaCreatedAt
+    ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '未知日期';
+
+  const metadata = item.mediaMetadata;
+  const isImage = item.fileType === 'image';
+  const imageMeta = isImage ? (metadata as ImageMetadata) : null;
+  const videoMeta = !isImage ? (metadata as VideoMetadata) : null;
+  
+  const formatDuration = (seconds: number | undefined) => {
+    if (seconds === undefined) return '';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <>
+      <div className="w-10 h-1 bg-white/30 rounded-full mx-auto mb-3 md:hidden" aria-hidden="true" />
+      <h2 className="text-xl font-bold mb-1">{item.aiTitle || item.fileName}</h2>
+      <p className="text-sm text-white/60 mb-4">{formattedDate}</p>
+
+      <div className="flex items-center gap-4 mb-6">
+          <button onClick={() => onToggleFavorite(item.uid)} className="flex items-center gap-2 text-sm hover:text-white transition-colors">
+              {item.isFavorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5" />}
+              {item.isFavorite ? '已收藏' : '收藏'}
+          </button>
+          <a href={item.downloadUrl} download className="flex items-center gap-2 text-sm hover:text-white transition-colors">
+              <DownloadIcon className="w-5 h-5" />
+              下载
+          </a>
+      </div>
+      
+      {item.aiTags && item.aiTags.length > 0 && (
+          <div className="mb-6">
+              <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-white/60 mb-2">
+                  <TagIcon className="w-4 h-4" />
+                  AI 标签
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                  {item.aiTags.map(tag => (
+                      <span key={tag} className="bg-white/10 text-sm px-2.5 py-1 rounded-full">{tag}</span>
+                  ))}
+              </div>
+          </div>
+      )}
+      
+      {metadata && (
+          <div>
+              <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-white/60 mb-3">
+                  <InfoIcon className="w-4 h-4" />
+                  详细信息
+              </h3>
+              <div className="space-y-2 text-sm">
+                  <MetadataRow label="文件名" value={item.fileName} />
+                  <MetadataRow label="分辨率" value={metadata.width && metadata.height ? `${metadata.width} x ${metadata.height}` : null} />
+                  {isImage && <MetadataRow label="相机" value={imageMeta?.cameraMake ? `${imageMeta.cameraMake} ${imageMeta.cameraModel || ''}`.trim() : null} />}
+                  {isImage && <MetadataRow label="曝光" value={imageMeta?.aperture && imageMeta?.shutterSpeed && imageMeta?.iso ? `ƒ/${imageMeta.aperture} • ${imageMeta.shutterSpeed}s • ISO ${imageMeta.iso}` : null} />}
+                  {!isImage && <MetadataRow label="时长" value={formatDuration(videoMeta?.duration)} />}
+                  {!isImage && <MetadataRow label="帧率" value={videoMeta?.fps ? `${videoMeta.fps.toFixed(2)} fps` : null} />}
+              </div>
+          </div>
+      )}
+    </>
+  );
+};
+
 
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
   const modalRef = useRef<HTMLDivElement>(null);
@@ -39,11 +114,13 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
 
   const [imageSrc, setImageSrc] = useState(`${item.thumbnailUrl}?size=preview`);
   const [hasAttemptedFallback, setHasAttemptedFallback] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     // When item changes, reset state and attempt to load the highest quality preview
     setImageSrc(`${item.thumbnailUrl}?size=preview`);
     setHasAttemptedFallback(false);
+    setShowDetails(false);
   }, [item.uid, item.thumbnailUrl]);
 
   useEffect(() => {
@@ -96,8 +173,6 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
   }, [item]);
 
   const handleImageError = () => {
-    // If the preview image fails, fall back to the original URL.
-    // The flag prevents an infinite loop if the original also fails.
     if (!hasAttemptedFallback) {
       setHasAttemptedFallback(true);
       setImageSrc(item.url);
@@ -105,32 +180,6 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
   };
   
   const showImageError = hasAttemptedFallback && imageSrc === item.url;
-
-  const handleFavoriteClick = () => {
-    onToggleFavorite(item.uid);
-  };
-  
-  const formattedDate = item.mediaCreatedAt
-    ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '未知日期';
-
-  const metadata = item.mediaMetadata;
-  const isImage = item.fileType === 'image';
-  const imageMeta = isImage ? (metadata as ImageMetadata) : null;
-  const videoMeta = !isImage ? (metadata as VideoMetadata) : null;
-  
-  const formatDuration = (seconds: number | undefined) => {
-    if (seconds === undefined) return '';
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
 
   return (
     <div 
@@ -143,7 +192,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     >
         <button 
             onClick={onClose} 
-            className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors z-[60]"
+            className="absolute top-2 right-2 sm:top-4 sm:right-4 text-white/70 hover:text-white transition-colors z-[60]"
             aria-label="关闭"
         >
             <CloseIcon className="w-8 h-8" />
@@ -151,7 +200,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         
         <button
           onClick={() => onNavigate('prev')}
-          className="absolute left-4 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-[60]"
+          className="absolute left-1 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-[60]"
           aria-label="上一个"
         >
           <ChevronLeftIcon className="w-8 h-8" />
@@ -159,14 +208,14 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
 
         <button
           onClick={() => onNavigate('next')}
-          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-[60]"
+          className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-[60]"
           aria-label="下一个"
         >
           <ChevronRightIcon className="w-8 h-8" />
         </button>
         
-        <div className="flex w-full h-full p-8 gap-4">
-            <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col md:flex-row w-full h-full p-2 sm:p-4 md:p-8 gap-4">
+            <div className="flex-1 flex items-center justify-center relative min-h-0">
                 {item.fileType === 'image' ? (
                     showImageError ? (
                         <div className="flex items-center justify-center h-full w-full bg-black/10 rounded-lg">
@@ -191,54 +240,46 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                         您的浏览器不支持播放该视频。
                     </video>
                 )}
-            </div>
-            <aside className="w-[400px] flex-shrink-0 bg-zinc-900/90 backdrop-blur-xl rounded-lg text-white/90 p-6 flex flex-col overflow-y-auto">
-                <h2 className="text-xl font-bold mb-1">{item.aiTitle || item.fileName}</h2>
-                <p className="text-sm text-white/60 mb-4">{formattedDate}</p>
-
-                <div className="flex items-center gap-4 mb-6">
-                    <button onClick={handleFavoriteClick} className="flex items-center gap-2 text-sm hover:text-white transition-colors">
-                        {item.isFavorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5" />}
-                        {item.isFavorite ? '已收藏' : '收藏'}
+                {/* --- MOBILE TOOLBAR --- */}
+                <div className="md:hidden absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent flex justify-center items-center gap-10">
+                    <button onClick={() => onToggleFavorite(item.uid)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
+                        {item.isFavorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
+                        <span className="text-xs mt-1">{item.isFavorite ? '已收藏' : '收藏'}</span>
                     </button>
-                    <a href={item.downloadUrl} download className="flex items-center gap-2 text-sm hover:text-white transition-colors">
-                        <DownloadIcon className="w-5 h-5" />
-                        下载
+                    <a href={item.downloadUrl} download className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
+                        <DownloadIcon className="w-6 h-6" />
+                        <span className="text-xs mt-1">下载</span>
                     </a>
+                    <button onClick={() => setShowDetails(true)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors">
+                        <InfoIcon className="w-6 h-6" />
+                        <span className="text-xs mt-1">信息</span>
+                    </button>
                 </div>
-                
-                {item.aiTags && item.aiTags.length > 0 && (
-                    <div className="mb-6">
-                        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-white/60 mb-2">
-                            <TagIcon className="w-4 h-4" />
-                            AI 标签
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                            {item.aiTags.map(tag => (
-                                <span key={tag} className="bg-white/10 text-sm px-2.5 py-1 rounded-full">{tag}</span>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                
-                {metadata && (
-                    <div>
-                        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-white/60 mb-3">
-                            <InfoIcon className="w-4 h-4" />
-                            详细信息
-                        </h3>
-                        <div className="space-y-2 text-sm">
-                            <MetadataRow label="文件名" value={item.fileName} />
-                            <MetadataRow label="分辨率" value={metadata.width && metadata.height ? `${metadata.width} x ${metadata.height}` : null} />
-                            {isImage && <MetadataRow label="相机" value={imageMeta?.cameraMake ? `${imageMeta.cameraMake} ${imageMeta.cameraModel || ''}`.trim() : null} />}
-                            {isImage && <MetadataRow label="曝光" value={imageMeta?.aperture && imageMeta?.shutterSpeed && imageMeta?.iso ? `ƒ/${imageMeta.aperture} • ${imageMeta.shutterSpeed}s • ISO ${imageMeta.iso}` : null} />}
-                            {!isImage && <MetadataRow label="时长" value={formatDuration(videoMeta?.duration)} />}
-                            {!isImage && <MetadataRow label="帧率" value={videoMeta?.fps ? `${videoMeta.fps.toFixed(2)} fps` : null} />}
-                        </div>
-                    </div>
-                )}
+            </div>
+            {/* --- DESKTOP SIDEBAR --- */}
+            <aside className="hidden md:flex w-full md:w-[380px] lg:w-[420px] flex-shrink-0 bg-zinc-900/80 backdrop-blur-xl rounded-lg text-white/90 p-4 md:p-6 flex-col overflow-y-auto">
+                <DetailsPanelContent item={item} onToggleFavorite={onToggleFavorite} />
             </aside>
         </div>
+        
+        {/* --- MOBILE DETAILS BOTTOM SHEET --- */}
+        {showDetails && (
+            <div 
+                className="absolute inset-0 bg-black/40 md:hidden animate-fade-in"
+                onClick={() => setShowDetails(false)}
+                aria-hidden="true"
+            >
+                <aside
+                    onClick={e => e.stopPropagation()}
+                    className="absolute bottom-0 left-0 right-0 w-full max-h-[60vh] bg-zinc-900 rounded-t-xl text-white/90 p-4 flex flex-col overflow-y-auto animate-slide-up"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="详细信息"
+                >
+                    <DetailsPanelContent item={item} onToggleFavorite={onToggleFavorite} />
+                </aside>
+            </div>
+        )}
     </div>
   );
 };
