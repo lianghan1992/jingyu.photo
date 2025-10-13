@@ -1,8 +1,8 @@
-# 璟聿.today 媒体服务 API 文档
+# 璟聿.today 前端 API 文档
 
 ## 简介
 
-本文档提供了对 `璟聿.today` 媒体服务后端 API 的详细说明。该 API 旨在为前端应用提供媒体文件管理、访问、AI 内容分析以及统计等功能。
+本文档为 `璟聿.today` 前端应用所使用的后端 API 提供了详细、真实的说明。旨在帮助开发者理解前端如何与后端进行数据交互。
 
 ## 认证
 
@@ -14,7 +14,23 @@
 
 ### MediaItem
 
-代表媒体库中的一个项目（图片或视频）。
+此接口是前端应用中用于表示媒体项（图片或视频）的TypeScript接口。
+
+```typescript
+export interface MediaItem {
+  uid: string;
+  name: string;
+  date: string; // ISO date string
+  type: 'image' | 'video';
+  url: string;
+  thumbnailUrl: string;
+  downloadUrl: string;
+  aiTitle: string | null;
+  aiTags: string[] | null;
+  isFavorite: boolean;
+  metadata: (ImageMetadata | VideoMetadata) | null;
+}
+```
 
 | 字段名         | 类型          | 描述                               |
 | -------------- | ------------- | ---------------------------------- |
@@ -30,220 +46,147 @@
 | `aiTags`       | Array[String] | (可选) AI 生成的标签列表。         |
 | `metadata`     | Object        | (可选) 包含媒体元数据的对象。      |
 
-**示例:**
-```json
-{
-  "uid": "a1b2c3d4e5f6",
-  "name": "IMG_1234.jpg",
-  "date": "2025-10-13T10:00:00+08:00",
-  "type": "image",
-  "isFavorite": false,
-  "url": "/api/original/0/path/to/IMG_1234.jpg",
-  "thumbnailUrl": "/api/thumbnails/a1b2c3d4e5f6",
-  "downloadUrl": "/api/media/a1b2c3d4e5f6/download",
-  "aiTitle": "夕阳下的海滩",
-  "aiTags": ["海滩", "夕阳", "风景"],
-  "metadata": {
-    "width": 1920,
-    "height": 1080,
-    "cameraMake": "Apple",
-    "cameraModel": "iPhone 15 Pro"
-  }
-}
-```
-
 ---
 
 ## API 端点
 
-### 任务 (Tasks)
-
-#### 1. 触发媒体库扫描
-
-在后台启动一个任务，扫描媒体库以发现新文件。
-
-- **Method:** `POST`
-- **Path:** `/api/scan`
-- **Body:** None
-
-**成功响应 (202 Accepted):**
-```json
-{
-  "message": "媒体库扫描任务已在后台启动。"
-}
-```
-
-**冲突响应 (409 Conflict):**
-```json
-{
-  "error": {
-    "code": "TASK_IN_PROGRESS",
-    "message": "媒体扫描任务已在进行中。"
-  }
-}
-```
-
-#### 2. 触发AI内容分析
-
-在后台启动一个任务，为尚未处理的媒体项进行AI内容分析。
-
-- **Method:** `POST`
-- **Path:** `/api/ai/process`
-- **Body:** None
-
-**成功响应 (202 Accepted):**
-```json
-{
-  "message": "AI内容分析任务已在后台启动。"
-}
-```
-
-**冲突响应 (409 Conflict):**
-```json
-{
-  "error": {
-    "code": "TASK_IN_PROGRESS",
-    "message": "AI处理任务已在进行中。"
-  }
-}
-```
-
-#### 3. 获取后台任务状态
-
-查询当前是否有扫描或AI处理任务正在运行。
-
-- **Method:** `GET`
-- **Path:** `/api/status`
-
-**响应示例:**
-```json
-{
-  "is_scanning": true,
-  "is_ai_processing": false
-}
-```
-
----
-
-### 媒体 (Media)
-
-#### 1. 获取媒体列表
+### 1. 获取媒体列表
 
 分页获取媒体项列表，支持排序、筛选和搜索。
 
 - **Method:** `GET`
 - **Path:** `/api/media`
-- **查询参数:**
-  - `page` (Int, optional, default: 1): 页码。
-  - `pageSize` (Int, optional, default: 20): 每页数量。
-  - `sort` (String, optional, default: `newest`): 排序方式 (`newest` 或 `oldest`)。
-  - `type` (String, optional): 按类型筛选 (`image` 或 `video`)。
-  - `favoritesOnly` (Boolean, optional, default: false): 只显示收藏项。
-  - `search` (String, optional): 搜索关键词 (匹配文件名、AI标题、AI标签)。
-  - `folder` (String, optional): 按文件夹路径筛选。
+- **介绍:** 这是应用的核心功能，用于无限滚动加载媒体数据。
 
-**响应示例 (`PaginatedMediaResponse`):**
-```json
-{
-  "total": 100,
-  "page": 1,
-  "pageSize": 20,
-  "items": [
-    // MediaItem 对象列表
-  ]
-}
+**Curl 示例:**
+```bash
+# 获取第一页，每页20个最新的图片
+curl "http://localhost:24116/api/media?page=1&pageSize=20&sort=newest&type=image"
 ```
 
-#### 2. 下载原始媒体文件
+**传入参数 (Query Parameters):**
 
-- **Method:** `GET`
-- **Path:** `/api/media/{uid}/download`
+| 参数名          | 类型    | 是否必须 | 默认值   | 描述                                     |
+| --------------- | ------- | -------- | -------- | ---------------------------------------- |
+| `page`          | Integer | 否       | 1        | 请求的页码。                             |
+| `pageSize`      | Integer | 否       | 20       | 每页返回的媒体项数量。                   |
+| `sort`          | String  | 否       | `newest` | 排序顺序 (`newest` 或 `oldest`)。        |
+| `type`          | String  | 否       | `all`    | 媒体类型 (`image` 或 `video`)。          |
+| `favoritesOnly` | Boolean | 否       | `false`  | 如果为 `true`，则只返回收藏的媒体项。    |
+| `search`        | String  | 否       |          | 搜索词，将匹配文件名、AI标题和AI标签。   |
+| `folder`        | String  | 否       |          | 按文件夹路径精确筛选。                   |
 
-**响应:**
-文件流，浏览器将提示下载。
+**响应 (Response):**
 
-#### 3. 收藏媒体项
+- **成功 (200 OK):**
+  ```json
+  {
+    "total": 150,
+    "page": 1,
+    "pageSize": 20,
+    "items": [
+      {
+        "uid": "...",
+        "name": "...",
+        // ... 其他 MediaItem 字段
+      }
+    ]
+  }
+  ```
 
-- **Method:** `POST`
+- **失败 (503 Service Unavailable):**
+  如果后端服务未运行，前端将捕获此错误。
+
+### 2. 切换收藏状态
+
+收藏或取消收藏一个媒体项。
+
+- **Method:** `POST` (收藏) / `DELETE` (取消收藏)
 - **Path:** `/api/media/{uid}/favorite`
-- **响应:** `204 No Content`
+- **介绍:** 用户点击收藏按钮时调用此接口。
 
-#### 4. 取消收藏媒体项
+**Curl 示例:**
+```bash
+# 收藏 UID 为 'some-uid' 的媒体项
+curl -X POST http://localhost:24116/api/media/some-uid/favorite
 
-- **Method:** `DELETE`
-- **Path:** `/api/media/{uid}/favorite`
-- **响应:** `204 No Content`
+# 取消收藏 UID 为 'some-uid' 的媒体项
+curl -X DELETE http://localhost:24116/api/media/some-uid/favorite
+```
 
-#### 5. 获取原始媒体文件
+**传入参数 (Path Parameters):**
 
-安全地提供对原始媒体文件的访问。
+| 参数名 | 类型   | 描述               |
+| ------ | ------ | ------------------ |
+| `uid`  | String | 要操作的媒体项的UID。 |
 
-- **Method:** `GET`
-- **Path:** `/api/original/{mount_index}/{relative_path}`
-- **路径参数:**
-  - `mount_index` (Int): 媒体库挂载点的索引。
-  - `relative_path` (String): 文件相对于挂载点的路径。
-- **响应:** 原始文件内容。
+**响应 (Response):**
 
----
+- **成功 (204 No Content):**
+  表示操作成功，没有返回内容。
 
-### 缩略图 (Thumbnails)
+- **失败 (404 Not Found):**
+  ```json
+  {
+      "error": {
+          "code": "NOT_FOUND",
+          "message": "媒体项未找到。"
+      }
+  }
+  ```
 
-#### 1. 获取响应式缩略图
-
-- **Method:** `GET`
-- **Path:** `/api/thumbnails/{uid}`
-- **查询参数:**
-  - `size` (String, optional, default: `medium`): 缩略图尺寸 (`small`, `medium`, `large`)。
-- **响应:** 缩略图图片文件。
-
----
-
-### 文件夹 (Folders)
-
-#### 1. 获取所有文件夹列表
+### 3. 获取所有文件夹列表
 
 获取媒体库中所有唯一的文件夹路径列表。
 
 - **Method:** `GET`
 - **Path:** `/api/folders`
+- **介绍:** 用于在侧边栏显示文件夹树。
 
-**响应示例:**
-```json
-[
-  "/path/to/folder1",
-  "/path/to/folder2"
-]
+**Curl 示例:**
+```bash
+curl http://localhost:24116/api/folders
 ```
 
----
+**响应 (Response):**
 
-### 统计 (Statistics)
+- **成功 (200 OK):**
+  ```json
+  [
+    "/mnt/data/nextcloud/lianghan/files/07.Baby/11.成长记录/2025.01.01.元旦",
+    "/mnt/data/nextcloud/lianghan/files/07.Baby/11.成长记录/2025.07.06.蘑菇乐园玩水"
+  ]
+  ```
 
-#### 1. 获取媒体库统计信息
+### 4. 触发AI内容分析
 
-获取关于媒体库的统计数据，如文件总数和总体积。
+在后台启动一个任务，为尚未处理的媒体项进行AI内容分析。
 
-- **Method:** `GET`
-- **Path:** `/api/stats`
-- **查询参数:**
-  - `year` (Int, optional): 按年份筛选。
-  - `month` (Int, optional): 按月份筛选 (需同时提供年份)。
+- **Method:** `POST`
+- **Path:** `/api/ai/process`
+- **介绍:** 用户可以手动触发此任务。
 
-**响应示例 (`StatsResponse`):**
-```json
-{
-  "total": {
-    "count": 1200,
-    "size": 53687091200
-  },
-  "photo": {
-    "count": 800,
-    "size": 21474836480
-  },
-  "video": {
-    "count": 400,
-    "size": 32212254720
+**Curl 示例:**
+```bash
+curl -X POST http://localhost:24116/api/ai/process
+```
+
+**响应 (Response):**
+
+- **成功 (202 Accepted):**
+  ```json
+  {
+    "message": "AI内容分析任务已在后台启动。"
   }
-}
-```
+  ```
+
+- **失败 (409 Conflict):**
+  如果已有AI任务在运行，将返回此错误。
+  ```json
+  {
+    "error": {
+        "code": "TASK_IN_PROGRESS",
+        "message": "AI处理任务已在进行中。"
+    }
+  }
+  ```
