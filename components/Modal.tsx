@@ -41,10 +41,10 @@ const MetadataDisplay: React.FC<{ item: MediaItem }> = ({ item }) => {
   if (item.type === 'image') {
     const imgMeta = metadata as ImageMetadata;
     if (imgMeta.width && imgMeta.height) infoItems.push({ label: '尺寸', value: `${imgMeta.width} × ${imgMeta.height}` });
-    if (imgMeta.cameraMake || imgMeta.cameraModel) infoItems.push({ label: '相机', value: `${imgMeta.cameraMake || ''} ${imgMeta.cameraModel || ''}`.trim() });
-    if (imgMeta.focalLength) infoItems.push({ label: '焦距', value: imgMeta.focalLength });
+    if (imgMeta.camera_make || imgMeta.camera_model) infoItems.push({ label: '相机', value: `${imgMeta.camera_make || ''} ${imgMeta.camera_model || ''}`.trim() });
+    if (imgMeta.focal_length) infoItems.push({ label: '焦距', value: imgMeta.focal_length });
     if (imgMeta.aperture) infoItems.push({ label: '光圈', value: imgMeta.aperture });
-    if (imgMeta.shutterSpeed) infoItems.push({ label: '快门', value: imgMeta.shutterSpeed });
+    if (imgMeta.shutter_speed) infoItems.push({ label: '快门', value: imgMeta.shutter_speed });
     if (imgMeta.iso) infoItems.push({ label: 'ISO', value: String(imgMeta.iso) });
   } else if (item.type === 'video') {
     const vidMeta = metadata as VideoMetadata;
@@ -96,7 +96,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
-  const mediaUrl = item.url;
+  const mediaUrl = `/api/original${item.url}`;
 
   const formattedDate = () => {
     if (!item.date) return '未知日期';
