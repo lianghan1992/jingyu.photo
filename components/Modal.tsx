@@ -150,7 +150,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
             <div className="flex-1 flex items-center justify-center">
                 {item.fileType === 'image' ? (
                     <img 
-                        src={`${item.thumbnailUrl}?size=preview`} 
+                        src={`${item.thumbnailUrl}?size=large`} 
                         alt={item.fileName} 
                         className="max-w-full max-h-full object-contain"
                     />
