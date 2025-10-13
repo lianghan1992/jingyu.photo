@@ -348,7 +348,7 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
                 onTransitionEnd={handleTransitionEnd}
               >
                 {[prevItem, currentItem, nextItem].map((item, index) => (
-                    <div key={item ? item.uid : `empty-${index}`} className="w-1/3 h-full flex items-center justify-center p-2">
+                    <div key={item ? item.uid : `empty-${index}`} className="w-1/3 h-full flex-shrink-0 flex items-center justify-center p-2">
                         {item && <MediaDisplay item={item} isActive={index === 1 && !isDragging} />}
                     </div>
                 ))}
