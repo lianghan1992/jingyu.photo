@@ -94,7 +94,7 @@ const App: React.FC = () => {
     }
 
     return mediaItems.reduce((acc, item) => {
-      const dateStr = item.mediaCreatedAt;
+      const dateStr = item.media_created_at;
       // Robust date parsing
       const parsableDateStr = dateStr ? dateStr.replace(' ', 'T') : null;
       const date = parsableDateStr ? new Date(parsableDateStr) : null;
@@ -116,17 +116,17 @@ const App: React.FC = () => {
     if (itemIndex === -1) return;
 
     const item = mediaItems[itemIndex];
-    const newIsFavorite = !item.isFavorite;
+    const newIsFavorite = !item.is_favorite;
 
     const updatedItems = [...mediaItems];
-    updatedItems[itemIndex] = { ...item, isFavorite: newIsFavorite };
+    updatedItems[itemIndex] = { ...item, is_favorite: newIsFavorite };
     setMediaItems(updatedItems);
 
     try {
-      await toggleFavorite(uid, item.isFavorite);
+      await toggleFavorite(uid, item.is_favorite);
     } catch (error) {
       console.error("Failed to update favorite status:", error);
-      updatedItems[itemIndex] = { ...item, isFavorite: item.isFavorite };
+      updatedItems[itemIndex] = { ...item, is_favorite: item.is_favorite };
       setMediaItems(updatedItems);
     }
   };
