@@ -2,7 +2,7 @@
 
 ## 简介
 
-本文档为 `璟聿.today` 后端服务提供了详细、真实的API说明。所有接口都经过了实际测试，旨在帮助开发者准确地理解和使用这些API。
+本文档为 `璟聿.today` 后端服务提供了详细、真实的API说明。所有接口都经过了实际测试，旨在帮助前端开发者准确地理解和使用这些API。
 
 ## 认证
 
@@ -14,7 +14,7 @@
 
 ### MediaItem
 
-代表媒体库中的一个项目（图片或视频）。下表中的字段名即为 API 响应中的实际字段名。
+代表媒体库中的一个项目（图片或视频）。下表中的字段名即为 API 响应中的实际字段名（使用 camelCase 格式）。
 
 | 字段名           | 类型          | 描述                                       |
 | ---------------- | ------------- | ------------------------------------------ |
@@ -28,8 +28,18 @@
 | `downloadUrl`    | String        | 下载原始媒体文件的URL。                    |
 | `hlsPlaybackUrl` | String \| null | (仅对视频) HLS 播放列表的 URL。如果为 `null`，则不支持 HLS。 |
 | `aiTitle`        | String \| null | (可选) AI 生成的标题。                     |
-| `aiTags`         | Array[String] | (可选) AI 生成的标签列表。                 |
-| `mediaMetadata`  | Object        | (可选) 包含媒体元数据的对象 (如宽高、相机信息等)。 |
+| `aiTags`         | Array[String] \| null | (可选) AI 生成的标签列表。                 |
+| `mediaMetadata`  | Object \| null | (可选) 包含媒体元数据的对象 (如宽高、相机信息等)。 |
+
+**mediaMetadata 对象结构（视频）：**
+```json
+{
+  "width": 2560,
+  "height": 1440,
+  "duration": 29.115667,
+  "fps": 25
+}
+```
 
 ---
 
@@ -45,8 +55,8 @@
 **响应 (200 OK):**
 ```json
 {
-  "is_scanning": false,
-  "is_ai_processing": false
+  "is_scanning": true,
+  "is_ai_processing": true
 }
 ```
 
@@ -90,15 +100,26 @@
 {
   "total": 251,
   "page": 1,
-  "pageSize": 20,
+  "pageSize": 2,
   "items": [
     {
-      "uid": "db992ebc023c7695322e87979cf46bf9",
-      "fileName": "VID_20250419_184348.mp4",
-      "mediaCreatedAt": "2025-04-19T18:43:48Z",
+      "uid": "1bbef39bebee0c101c03de3ceb4ecefa",
+      "fileName": "20250115115455841_3YSB0471732GM3Q_30.mp4",
+      "mediaCreatedAt": "2025-10-07T06:49:43.495514Z",
       "fileType": "video",
-      "hlsPlaybackUrl": "/api/streams/db992ebc023c7695322e87979cf46bf9/master.m3u8",
-      // ... 其他字段
+      "isFavorite": false,
+      "url": "/api/original/0/02.学走路/20250115115455841_3YSB0471732GM3Q_30.mp4",
+      "thumbnailUrl": "/api/thumbnails/1bbef39bebee0c101c03de3ceb4ecefa",
+      "downloadUrl": "/api/media/1bbef39bebee0c101c03de3ceb4ecefa/download",
+      "aiTitle": null,
+      "aiTags": null,
+      "mediaMetadata": {
+        "width": 2560,
+        "height": 1440,
+        "duration": 29.115667,
+        "fps": 25
+      },
+      "hlsPlaybackUrl": "/api/streams/1bbef39bebee0c101c03de3ceb4ecefa/master.m3u8"
     }
   ]
 }
@@ -195,3 +216,117 @@
 **响应:**
 - **202 Accepted:** 任务已在后台启动。
 - **409 Conflict:** 如果已有AI任务在运行。
+
+---
+
+## 错误处理
+
+### 标准错误响应
+
+所有API端点在出现错误时都会返回JSON格式的错误信息：
+
+#### 404 Not Found (通用)
+```json
+{
+  "detail": "Not Found"
+}
+```
+
+#### 404 Not Found (媒体项未找到)
+```json
+{
+  "detail": {
+    "error": {
+      "code": "NOT_FOUND",
+      "message": "媒体项未找到。"
+    }
+  }
+}
+```
+
+#### 405 Method Not Allowed
+```json
+{
+  "detail": "Method Not Allowed"
+}
+```
+
+#### 409 Conflict (任务已在运行)
+```json
+{
+  "detail": {
+    "error": {
+      "code": "TASK_ALREADY_RUNNING",
+      "message": "扫描任务已在运行中。"
+    }
+  }
+}
+```
+
+---
+
+## 重要说明
+
+1. **字段命名约定**: API 响应使用 camelCase 格式的字段名（如 `fileName`, `mediaCreatedAt`, `isFavorite` 等）。
+
+2. **null 值处理**: 可选字段（如 `aiTitle`, `aiTags`, `mediaMetadata`）在没有数据时返回 `null`。
+
+3. **媒体元数据**: `mediaMetadata` 字段包含媒体文件的技术信息，对于视频文件包括宽度、高度、时长和帧率。
+
+4. **HLS 支持**: 所有视频文件都支持 HLS 流媒体播放，`hlsPlaybackUrl` 字段提供播放列表 URL。
+
+5. **缩略图**: 所有媒体项都有对应的缩略图，支持多种尺寸。
+
+6. **错误处理**: 所有错误都以JSON格式返回，包含详细的错误代码和消息。
+
+7. **CORS**: API支持跨域请求，前端可以直接调用。
+
+8. **内容类型**: 
+   - JSON响应使用 `application/json`
+   - 图片响应使用 `image/webp`
+   - HLS播放列表使用 `application/vnd.apple.mpegurl`
+   - 视频切片使用 `video/mp2t`
+
+## 前端开发指南
+
+### 基本使用示例
+
+```javascript
+// 获取媒体列表
+const response = await fetch('/api/media?page=1&pageSize=20');
+const data = await response.json();
+
+// 显示图片
+const imageItem = data.items.find(item => item.fileType === 'image');
+if (imageItem) {
+  const img = document.createElement('img');
+  img.src = imageItem.url;
+  img.alt = imageItem.fileName;
+}
+
+// 播放视频
+const videoItem = data.items.find(item => item.fileType === 'video');
+if (videoItem && videoItem.hlsPlaybackUrl) {
+  // 使用HLS.js或其他HLS播放器
+  const video = document.createElement('video');
+  video.src = videoItem.hlsPlaybackUrl;
+}
+
+// 获取文件夹列表
+const foldersResponse = await fetch('/api/folders');
+const folders = await foldersResponse.json();
+```
+
+### 错误处理示例
+
+```javascript
+try {
+  const response = await fetch('/api/media/invalid-uid/download');
+  if (!response.ok) {
+    const error = await response.json();
+    console.error('API Error:', error.detail);
+  }
+} catch (error) {
+  console.error('Network Error:', error);
+}
+```

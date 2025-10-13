@@ -55,21 +55,21 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
   }, [onClose, onNavigate]);
   
   useEffect(() => {
-    if (item.file_type !== 'video' || !videoRef.current) {
+    if (item.fileType !== 'video' || !videoRef.current) {
       return;
     }
 
     const videoElement = videoRef.current;
     let hlsInstance: any | null = null;
 
-    if (item.hls_playback_url) {
+    if (item.hlsPlaybackUrl) {
       if (typeof Hls !== 'undefined' && Hls.isSupported()) {
         hlsInstance = new Hls();
-        hlsInstance.loadSource(item.hls_playback_url);
+        hlsInstance.loadSource(item.hlsPlaybackUrl);
         hlsInstance.attachMedia(videoElement);
       } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
         // Native HLS support (e.g., Safari)
-        videoElement.src = item.hls_playback_url;
+        videoElement.src = item.hlsPlaybackUrl;
       } else {
         // Fallback to direct URL if HLS is not supported at all
         videoElement.src = item.url;
@@ -91,8 +91,8 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     onToggleFavorite(item.uid);
   };
   
-  const formattedDate = item.media_created_at
-    ? new Date(item.media_created_at.replace(' ', 'T')).toLocaleString('zh-CN', {
+  const formattedDate = item.mediaCreatedAt
+    ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleString('zh-CN', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -101,8 +101,8 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       })
     : '未知日期';
 
-  const metadata = item.media_metadata;
-  const isImage = item.file_type === 'image';
+  const metadata = item.mediaMetadata;
+  const isImage = item.fileType === 'image';
   const imageMeta = isImage ? (metadata as ImageMetadata) : null;
   const videoMeta = !isImage ? (metadata as VideoMetadata) : null;
   
@@ -120,7 +120,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       onClick={(e) => { if(e.target === modalRef.current) onClose() }}
       role="dialog"
       aria-modal="true"
-      aria-label={item.file_name}
+      aria-label={item.fileName}
     >
         <button 
             onClick={onClose} 
@@ -148,10 +148,10 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         
         <div className="flex w-full h-full p-16">
             <div className="flex-1 flex items-center justify-center">
-                {item.file_type === 'image' ? (
+                {item.fileType === 'image' ? (
                     <img 
-                        src={`${item.thumbnail_url}?size=large`} 
-                        alt={item.file_name} 
+                        src={`${item.thumbnailUrl}?size=large`} 
+                        alt={item.fileName} 
                         className="max-w-full max-h-full object-contain"
                     />
                 ) : (
@@ -166,28 +166,28 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                 )}
             </div>
             <aside className="w-80 flex-shrink-0 bg-gray-800/50 backdrop-blur-md rounded-lg ml-4 text-white/90 p-6 flex flex-col overflow-y-auto">
-                <h2 className="text-xl font-bold mb-1">{item.ai_title || item.file_name}</h2>
+                <h2 className="text-xl font-bold mb-1">{item.aiTitle || item.fileName}</h2>
                 <p className="text-sm text-white/60 mb-4">{formattedDate}</p>
 
                 <div className="flex items-center gap-4 mb-6">
                     <button onClick={handleFavoriteClick} className="flex items-center gap-2 text-sm hover:text-white transition-colors">
-                        {item.is_favorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5" />}
-                        {item.is_favorite ? '已收藏' : '收藏'}
+                        {item.isFavorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5" />}
+                        {item.isFavorite ? '已收藏' : '收藏'}
                     </button>
-                    <a href={item.download_url} download className="flex items-center gap-2 text-sm hover:text-white transition-colors">
+                    <a href={item.downloadUrl} download className="flex items-center gap-2 text-sm hover:text-white transition-colors">
                         <DownloadIcon className="w-5 h-5" />
                         下载
                     </a>
                 </div>
                 
-                {item.ai_tags && item.ai_tags.length > 0 && (
+                {item.aiTags && item.aiTags.length > 0 && (
                     <div className="mb-6">
                         <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-white/60 mb-2">
                             <TagIcon className="w-4 h-4" />
                             AI 标签
                         </h3>
                         <div className="flex flex-wrap gap-2">
-                            {item.ai_tags.map(tag => (
+                            {item.aiTags.map(tag => (
                                 <span key={tag} className="bg-white/10 text-sm px-2.5 py-1 rounded-full">{tag}</span>
                             ))}
                         </div>
@@ -201,10 +201,10 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                             详细信息
                         </h3>
                         <div className="space-y-2 text-sm">
-                            <MetadataRow label="文件名" value={item.file_name} />
+                            <MetadataRow label="文件名" value={item.fileName} />
                             <MetadataRow label="分辨率" value={metadata.width && metadata.height ? `${metadata.width} x ${metadata.height}` : null} />
-                            {isImage && <MetadataRow label="相机" value={imageMeta?.camera_make ? `${imageMeta.camera_make} ${imageMeta.camera_model || ''}`.trim() : null} />}
-                            {isImage && <MetadataRow label="曝光" value={imageMeta?.aperture && imageMeta?.shutter_speed && imageMeta?.iso ? `ƒ/${imageMeta.aperture} • ${imageMeta.shutter_speed}s • ISO ${imageMeta.iso}` : null} />}
+                            {isImage && <MetadataRow label="相机" value={imageMeta?.cameraMake ? `${imageMeta.cameraMake} ${imageMeta.cameraModel || ''}`.trim() : null} />}
+                            {isImage && <MetadataRow label="曝光" value={imageMeta?.aperture && imageMeta?.shutterSpeed && imageMeta?.iso ? `ƒ/${imageMeta.aperture} • ${imageMeta.shutterSpeed}s • ISO ${imageMeta.iso}` : null} />}
                             {!isImage && <MetadataRow label="时长" value={formatDuration(videoMeta?.duration)} />}
                             {!isImage && <MetadataRow label="帧率" value={videoMeta?.fps ? `${videoMeta.fps.toFixed(2)} fps` : null} />}
                         </div>
