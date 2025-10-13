@@ -65,3 +65,20 @@ export async function fetchFolders(): Promise<string[]> {
     }
     return response.json();
 }
+
+export async function triggerAiProcessing(): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE}/ai/process`, { method: 'POST' });
+    const responseData = await response.json();
+
+    if (!response.ok) {
+        if (response.status === 409) { // Conflict
+            throw new Error(responseData.error?.message || 'AI处理任务已在进行中。');
+        }
+        if (response.status === 503) {
+            throw new Error('服务暂时不可用 (503)。');
+        }
+        throw new Error(responseData.error?.message || '启动AI处理任务失败。');
+    }
+
+    return responseData;
+}

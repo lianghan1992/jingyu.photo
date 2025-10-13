@@ -26,7 +26,7 @@ const formatDuration = (seconds: number): string => {
 };
 
 const MetadataDisplay: React.FC<{ item: MediaItem }> = ({ item }) => {
-  if (!item.metadata) {
+  if (!item.media_metadata) {
     return (
       <div className="text-center py-4">
         <InfoIcon className="w-8 h-8 mx-auto text-zinc-400 mb-2" />
@@ -36,21 +36,21 @@ const MetadataDisplay: React.FC<{ item: MediaItem }> = ({ item }) => {
   }
 
   const infoItems: { label: string, value: React.ReactNode }[] = [];
-  const metadata = item.metadata;
+  const metadata = item.media_metadata;
 
-  if (item.type === 'image') {
+  if (item.file_type === 'image') {
     const imgMeta = metadata as ImageMetadata;
     if (imgMeta.width && imgMeta.height) infoItems.push({ label: '尺寸', value: `${imgMeta.width} × ${imgMeta.height}` });
-    if (imgMeta.cameraMake || imgMeta.cameraModel) infoItems.push({ label: '相机', value: `${imgMeta.cameraMake || ''} ${imgMeta.cameraModel || ''}`.trim() });
-    if (imgMeta.focalLength) infoItems.push({ label: '焦距', value: imgMeta.focalLength });
+    if (imgMeta.camera_make || imgMeta.camera_model) infoItems.push({ label: '相机', value: `${imgMeta.camera_make || ''} ${imgMeta.camera_model || ''}`.trim() });
+    if (imgMeta.focal_length) infoItems.push({ label: '焦距', value: imgMeta.focal_length });
     if (imgMeta.aperture) infoItems.push({ label: '光圈', value: imgMeta.aperture });
-    if (imgMeta.shutterSpeed) infoItems.push({ label: '快门', value: imgMeta.shutterSpeed });
+    if (imgMeta.shutter_speed) infoItems.push({ label: '快门', value: imgMeta.shutter_speed });
     if (imgMeta.iso) infoItems.push({ label: 'ISO', value: String(imgMeta.iso) });
-  } else if (item.type === 'video') {
+  } else if (item.file_type === 'video') {
     const vidMeta = metadata as VideoMetadata;
     if (vidMeta.width && vidMeta.height) infoItems.push({ label: '分辨率', value: `${vidMeta.width} × ${vidMeta.height}` });
     if (vidMeta.duration) infoItems.push({ label: '时长', value: formatDuration(vidMeta.duration) });
-    if (vidMeta.fps) infoItems.push({ label: '帧率', value: `${vidMeta.fps} FPS` });
+    if (vidMeta.fps) infoItems.push({ label: '帧率', value: `${Math.round(vidMeta.fps)} FPS` });
   }
   
   if (infoItems.length === 0) {
@@ -96,13 +96,12 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     };
   }, [onClose, onNavigate]);
 
-  // Use the direct access URL as specified in the API documentation.
   const mediaUrl = item.url;
 
   const formattedDate = () => {
-    if (!item.date) return '未知日期';
-    // Robust date parsing: handle cases where 'T' is replaced by a space.
-    const parsableDateStr = item.date.replace(' ', 'T');
+    const dateStr = item.media_created_at;
+    if (!dateStr) return '未知日期';
+    const parsableDateStr = dateStr.replace(' ', 'T');
     const date = new Date(parsableDateStr);
     if (isNaN(date.getTime())) return '未知日期';
     return date.toLocaleString('zh-CN', { dateStyle: 'long', timeStyle: 'short' });
@@ -126,10 +125,10 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col md:flex-row overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Media Display */}
         <div className="relative flex-grow h-2/3 md:h-full md:w-3/4 bg-black flex items-center justify-center">
-          {item.type === 'video' ? (
+          {item.file_type === 'video' ? (
             <video src={mediaUrl} controls autoPlay className="max-h-full max-w-full object-contain" />
           ) : (
-            <img src={mediaUrl} alt={item.name} className="max-h-full max-w-full object-contain" />
+            <img src={mediaUrl} alt={item.file_name} className="max-h-full max-w-full object-contain" />
           )}
           <button onClick={onClose} className="absolute top-4 right-4 text-white bg-black/30 p-2 rounded-full hover:bg-black/50 transition-colors" aria-label="Close">
             <CloseIcon className="w-6 h-6" />
@@ -139,15 +138,15 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         {/* Sidebar Info */}
         <div className="w-full md:w-1/4 h-1/3 md:h-full flex flex-col bg-zinc-50 border-l border-zinc-200">
           <div className="p-6">
-            <h2 className="text-2xl font-bold mb-1 text-zinc-900 break-words">{item.aiTitle || item.name}</h2>
+            <h2 className="text-2xl font-bold mb-1 text-zinc-900 break-words">{item.ai_title || item.file_name}</h2>
             <p className="text-zinc-500 text-sm mb-6">{formattedDate()}</p>
             
             <div className="flex items-center gap-2 mb-2">
               <button onClick={() => onToggleFavorite(item.uid)} className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors text-zinc-700">
-                {item.isFavorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5 text-zinc-500" />}
-                <span className="font-semibold text-sm">{item.isFavorite ? '已收藏' : '收藏'}</span>
+                {item.is_favorite ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5 text-zinc-500" />}
+                <span className="font-semibold text-sm">{item.is_favorite ? '已收藏' : '收藏'}</span>
               </button>
-              <a href={item.downloadUrl} download={item.name} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors text-zinc-700">
+              <a href={item.downloadUrl} download={item.file_name} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-100 transition-colors text-zinc-700">
                 <DownloadIcon className="w-5 h-5 text-zinc-500" />
                 <span className="font-semibold text-sm">下载</span>
               </a>
@@ -164,9 +163,9 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
           <div className="flex-grow p-6 overflow-y-auto">
             {activeTab === 'ai' ? (
               <div>
-                {item.aiTags && item.aiTags.length > 0 ? (
+                {item.ai_tags && item.ai_tags.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {item.aiTags.map(tag => <span key={tag} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-full">{tag}</span>)}
+                    {item.ai_tags.map(tag => <span key={tag} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-full">{tag}</span>)}
                   </div>
                 ) : (
                   <div className="text-center py-4">
