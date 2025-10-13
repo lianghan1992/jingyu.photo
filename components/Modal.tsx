@@ -27,7 +27,7 @@ const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
   return (
     <div className="flex justify-between">
       <span className="text-white/60">{label}</span>
-      <span>{value}</span>
+      <span className="truncate">{value}</span>
     </div>
   );
 };
@@ -36,12 +36,15 @@ const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [imageUrl, setImageUrl] = useState(`${item.thumbnailUrl}?size=preview`);
+
+  const [imageSrc, setImageSrc] = useState(`${item.thumbnailUrl}?size=preview`);
+  const [hasAttemptedFallback, setHasAttemptedFallback] = useState(false);
 
   useEffect(() => {
-    // Reset image URL when item changes to show the new preview image
-    setImageUrl(`${item.thumbnailUrl}?size=preview`);
-  }, [item.thumbnailUrl]);
+    // When item changes, reset state and attempt to load the highest quality preview
+    setImageSrc(`${item.thumbnailUrl}?size=preview`);
+    setHasAttemptedFallback(false);
+  }, [item.uid, item.thumbnailUrl]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -93,11 +96,15 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
   }, [item]);
 
   const handleImageError = () => {
-    // Fallback to the original image if the preview image fails to load
-    if (imageUrl !== item.url) {
-      setImageUrl(item.url);
+    // If the preview image fails, fall back to the original URL.
+    // The flag prevents an infinite loop if the original also fails.
+    if (!hasAttemptedFallback) {
+      setHasAttemptedFallback(true);
+      setImageSrc(item.url);
     }
   };
+  
+  const showImageError = hasAttemptedFallback && imageSrc === item.url;
 
   const handleFavoriteClick = () => {
     onToggleFavorite(item.uid);
@@ -136,37 +143,44 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     >
         <button 
             onClick={onClose} 
-            className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors z-50"
-            aria-label="Close modal"
+            className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors z-[60]"
+            aria-label="关闭"
         >
             <CloseIcon className="w-8 h-8" />
         </button>
         
         <button
           onClick={() => onNavigate('prev')}
-          className="absolute left-4 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-50"
-          aria-label="Previous item"
+          className="absolute left-4 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-[60]"
+          aria-label="上一个"
         >
           <ChevronLeftIcon className="w-8 h-8" />
         </button>
 
         <button
           onClick={() => onNavigate('next')}
-          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-50"
-          aria-label="Next item"
+          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-[60]"
+          aria-label="下一个"
         >
           <ChevronRightIcon className="w-8 h-8" />
         </button>
         
-        <div className="flex w-full h-full p-16">
+        <div className="flex w-full h-full p-8 gap-4">
             <div className="flex-1 flex items-center justify-center">
                 {item.fileType === 'image' ? (
-                    <img 
-                        src={imageUrl} 
-                        alt={item.fileName} 
-                        className="max-w-full max-h-full object-contain"
-                        onError={handleImageError}
-                    />
+                    showImageError ? (
+                        <div className="flex items-center justify-center h-full w-full bg-black/10 rounded-lg">
+                            <p className="text-white/60">图片加载失败</p>
+                        </div>
+                    ) : (
+                        <img 
+                            key={imageSrc}
+                            src={imageSrc} 
+                            alt={item.fileName} 
+                            className="max-w-full max-h-full object-contain"
+                            onError={handleImageError}
+                        />
+                    )
                 ) : (
                     <video 
                         ref={videoRef}
@@ -174,11 +188,11 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                         autoPlay 
                         className="max-w-full max-h-full object-contain"
                     >
-                        Your browser does not support the video tag.
+                        您的浏览器不支持播放该视频。
                     </video>
                 )}
             </div>
-            <aside className="w-96 flex-shrink-0 bg-black/50 backdrop-blur-md rounded-lg ml-4 text-white/90 p-6 flex flex-col overflow-y-auto">
+            <aside className="w-[400px] flex-shrink-0 bg-zinc-900/90 backdrop-blur-xl rounded-lg text-white/90 p-6 flex flex-col overflow-y-auto">
                 <h2 className="text-xl font-bold mb-1">{item.aiTitle || item.fileName}</h2>
                 <p className="text-sm text-white/60 mb-4">{formattedDate}</p>
 
