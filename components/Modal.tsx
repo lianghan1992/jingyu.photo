@@ -84,10 +84,10 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col md:flex-row overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Media Display */}
         <div className="relative flex-grow h-2/3 md:h-full md:w-3/4 bg-black flex items-center justify-center">
-          {item.type === 'image' ? (
-            <img src={item.url} alt={item.name} className="max-h-full max-w-full object-contain" />
-          ) : (
+          {item.type === 'video' ? (
             <video src={item.url} controls autoPlay className="max-h-full max-w-full object-contain" />
+          ) : (
+            <img src={item.url} alt={item.name} className="max-h-full max-w-full object-contain" />
           )}
           <button onClick={onClose} className="absolute top-4 right-4 text-white bg-black/30 p-2 rounded-full hover:bg-black/50 transition-colors" aria-label="Close">
             <CloseIcon className="w-6 h-6" />
