@@ -194,8 +194,8 @@ const App: React.FC = () => {
           activeView={activeView}
           setActiveView={setActiveView}
         />
-        <main ref={scrollContainerRef} className="flex-1 overflow-y-auto">
-          <div className="p-4 sm:p-6 md:p-8">
+        <main ref={scrollContainerRef} className="flex-1 overflow-y-scroll">
+          <div className="p-4 sm:p-6 md:p-8 min-h-full">
               {mediaItems.length > 0 ? (
                   <MediaGrid 
                       items={groupedMedia} 

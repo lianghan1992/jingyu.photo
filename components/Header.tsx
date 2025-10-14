@@ -36,13 +36,13 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-20 bg-slate-950/80 backdrop-blur-lg border-b border-slate-800/80 px-4 sm:px-6 md:px-8 py-3">
-      <div className="flex items-center justify-end md:justify-between gap-4 max-w-screen-2xl mx-auto">
-        {/* Site Title - moved from Sidebar for better desktop layout */}
-        <div className="hidden md:flex items-center gap-3">
+      <div className="flex items-center justify-between gap-4 max-w-screen-2xl mx-auto">
+        {/* Site Title/Logo */}
+        <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-md shadow-inner">
             璟
           </div>
-          <span className="text-lg font-bold text-slate-100">
+          <span className="hidden md:block text-lg font-bold text-slate-100">
             璟聿今日
           </span>
         </div>
