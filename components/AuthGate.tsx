@@ -33,15 +33,15 @@ const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-zinc-100 p-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-black p-4">
       <div className="w-full max-w-sm mx-auto animate-fade-in">
         <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-zinc-800">璟聿.today</h1>
-            <p className="text-zinc-500 mt-2">亲友访问通道</p>
+            <h1 className="text-4xl font-bold text-zinc-100">璟聿.today</h1>
+            <p className="text-zinc-400 mt-2">亲友访问通道</p>
         </div>
         <form 
           onSubmit={handleSubmit} 
-          className="bg-white p-8 rounded-2xl shadow-lg"
+          className="bg-zinc-900 p-8 rounded-2xl shadow-lg"
         >
           <div className="space-y-4">
             <div>
@@ -52,7 +52,7 @@ const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 value={inputCode}
                 onChange={(e) => setInputCode(e.target.value)}
                 placeholder="请输入访问口令"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-lg text-center text-zinc-200 placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                 aria-describedby="error-message"
                 autoFocus
               />
@@ -60,7 +60,7 @@ const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
             <button
               type="submit"
               disabled={isSubmitting || !inputCode}
-              className="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg text-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg text-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-500/50 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? '验证中...' : '进入相册'}
             </button>

@@ -175,7 +175,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex bg-zinc-50 min-h-screen text-zinc-800">
+    <div className="flex bg-zinc-900 min-h-screen text-zinc-200">
       <Sidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 
@@ -190,8 +190,10 @@ const App: React.FC = () => {
           setTimeView={setTimeView}
           favoritesOnly={favoritesOnly}
           setFavoritesOnly={setFavoritesOnly}
+          activeView={activeView}
+          setActiveView={setActiveView}
         />
-        <main ref={scrollContainerRef} className="flex-1 overflow-y-auto pb-16 md:pb-0">
+        <main ref={scrollContainerRef} className="flex-1 overflow-y-auto">
           <div className="p-4 sm:p-6 md:p-8">
               {mediaItems.length > 0 ? (
                   <MediaGrid 
@@ -202,12 +204,12 @@ const App: React.FC = () => {
               ) : (
                 !isLoading && !error && (
                   <div className="text-center py-20">
-                      <p className="text-gray-500 text-lg">没有找到匹配的项目。</p>
+                      <p className="text-zinc-500 text-lg">没有找到匹配的项目。</p>
                   </div>
                 )
               )}
               {isLoading && (
-                 <div className="text-center py-10 text-gray-500">
+                 <div className="text-center py-10 text-zinc-400">
                     加载中...
                  </div>
               )}

@@ -1,0 +1,21 @@
+{
+  "name": "璟聿.today",
+  "short_name": "璟聿",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#18181b",
+  "theme_color": "#18181b",
+  "description": "一个现代化的智能家庭相册，旨在通过AI技术帮助您整理、发现和重温生活中的珍贵回忆。",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

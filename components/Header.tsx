@@ -1,6 +1,7 @@
 import React from 'react';
-import { SearchIcon, HeartIcon, HeartSolidIcon } from './Icons';
+import { SearchIcon, HeartIcon, HeartSolidIcon, LibraryIcon, PhotoIcon, VideoIcon } from './Icons';
 import TimeSelector, { TimeView } from './TimeSelector';
+import { ViewType } from './FolderSelector';
 
 type SortType = 'newest' | 'oldest';
 
@@ -13,6 +14,8 @@ interface HeaderProps {
   setTimeView: (view: TimeView) => void;
   favoritesOnly: boolean;
   setFavoritesOnly: (favoritesOnly: boolean) => void;
+  activeView: ViewType;
+  setActiveView: (view: ViewType) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -23,34 +26,59 @@ const Header: React.FC<HeaderProps> = ({
   timeView,
   setTimeView,
   favoritesOnly,
-  setFavoritesOnly
+  setFavoritesOnly,
+  activeView,
+  setActiveView
 }) => {
+  const viewItems = [
+    { key: 'all' as ViewType, label: '图库', icon: LibraryIcon },
+    { key: 'image' as ViewType, label: '照片', icon: PhotoIcon },
+    { key: 'video' as ViewType, label: '视频', icon: VideoIcon },
+  ];
+
   return (
-    <header className="sticky top-0 z-20 bg-zinc-50/80 backdrop-blur-lg border-b border-gray-200/80 px-4 sm:px-6 md:px-8 py-3">
+    <header className="sticky top-0 z-20 bg-zinc-900/80 backdrop-blur-lg border-b border-zinc-800/80 px-4 sm:px-6 md:px-8 py-3">
       <div className="flex items-center justify-between gap-4 max-w-screen-2xl mx-auto">
         <div className="flex-1 max-w-2xl">
           <div className="relative">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <SearchIcon className="w-5 h-5 text-gray-400" />
+              <SearchIcon className="w-5 h-5 text-zinc-500" />
             </span>
             <input
               type="text"
               placeholder="搜索照片、标签或地点..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300/60 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white/70 hover:border-gray-400/80"
+              className="w-full pl-10 pr-4 py-2 border border-zinc-700/60 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-zinc-800/70 hover:border-zinc-600/80 text-zinc-200 placeholder-zinc-500"
               aria-label="Search media"
             />
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
+            <div className="md:hidden flex items-center gap-1 bg-zinc-800 p-1 rounded-lg">
+              {viewItems.map(view => (
+                <button
+                  key={view.key}
+                  onClick={() => setActiveView(view.key)}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    activeView === view.key
+                      ? 'bg-blue-500 text-white'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                  aria-label={view.label}
+                >
+                  <view.icon className="w-5 h-5" />
+                </button>
+              ))}
+            </div>
+
             <button
               onClick={() => setFavoritesOnly(!favoritesOnly)}
               className={`p-2 rounded-lg transition-colors ${
                 favoritesOnly 
-                  ? 'bg-red-100 text-red-500' 
-                  : 'text-gray-600 hover:bg-gray-200/80'
+                  ? 'bg-red-900/50 text-red-400' 
+                  : 'text-zinc-400 hover:bg-zinc-700/80'
               }`}
               aria-pressed={favoritesOnly}
               aria-label={favoritesOnly ? "显示全部" : "仅显示收藏"}
@@ -62,7 +90,7 @@ const Header: React.FC<HeaderProps> = ({
             <select 
               value={activeSort}
               onChange={(e) => setActiveSort(e.target.value as SortType)}
-              className="text-sm font-medium text-gray-600 bg-transparent border-none rounded-md focus:ring-2 focus:ring-blue-500"
+              className="text-sm font-medium text-zinc-400 bg-zinc-800 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 transition-colors hover:bg-zinc-700/80 border-transparent focus:border-blue-500"
               aria-label="Sort media"
             >
               <option value="newest">最新</option>
