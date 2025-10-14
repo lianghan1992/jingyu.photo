@@ -36,28 +36,20 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-20 bg-slate-950/80 backdrop-blur-lg border-b border-slate-800/80 px-4 sm:px-6 md:px-8 py-3">
-      <div className="flex items-center justify-between gap-4 max-w-screen-2xl mx-auto">
-        <div className="flex items-center gap-2">
-            <button 
-                onClick={openSearch}
-                className="p-2 rounded-lg text-slate-400 hover:bg-slate-700/80 transition-colors md:hidden"
-                aria-label="搜索"
-            >
-                <SearchIcon className="w-5 h-5" />
-            </button>
-            <div className="hidden md:block flex-1 max-w-2xl">
-                <button
-                    onClick={openSearch}
-                    className="w-full text-left pl-4 pr-4 py-2 border border-slate-700/60 rounded-lg transition bg-slate-800/70 hover:border-slate-600/80 text-slate-500 flex items-center gap-2"
-                    aria-label="Search media"
-                >
-                    <SearchIcon className="w-5 h-5" />
-                    搜索照片、标签或地点...
-                </button>
-            </div>
+      <div className="flex items-center justify-end md:justify-between gap-4 max-w-screen-2xl mx-auto">
+        {/* Site Title - moved from Sidebar for better desktop layout */}
+        <div className="hidden md:flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-md shadow-inner">
+            璟
+          </div>
+          <span className="text-lg font-bold text-slate-100">
+            璟聿今日
+          </span>
         </div>
         
+        {/* Controls Container */}
         <div className="flex items-center gap-2 md:gap-4">
+            {/* 1. View switcher (mobile only) */}
             <div className="md:hidden flex items-center gap-1 bg-slate-800 p-1 rounded-lg">
               {viewItems.map(view => (
                 <button
@@ -75,6 +67,7 @@ const Header: React.FC<HeaderProps> = ({
               ))}
             </div>
 
+            {/* 2. Favorites */}
             <button
               onClick={() => setFavoritesOnly(!favoritesOnly)}
               className={`p-2 rounded-lg transition-colors ${
@@ -87,8 +80,20 @@ const Header: React.FC<HeaderProps> = ({
             >
               {favoritesOnly ? <HeartSolidIcon className="w-5 h-5" /> : <HeartIcon className="w-5 h-5" />}
             </button>
+            
+            {/* 3. Search */}
+            <button 
+                onClick={openSearch}
+                className="p-2 rounded-lg text-slate-400 hover:bg-slate-700/80 transition-colors"
+                aria-label="搜索"
+            >
+                <SearchIcon className="w-5 h-5" />
+            </button>
 
+            {/* 4. Year/Month/Day */}
             <TimeSelector activeView={timeView} setActiveView={setTimeView} />
+            
+            {/* 5. New/Old */}
             <select 
               value={activeSort}
               onChange={(e) => setActiveSort(e.target.value as SortType)}
