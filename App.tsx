@@ -21,7 +21,6 @@ const App: React.FC = () => {
   const [timeView, setTimeView] = useState<TimeView>('days');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
-  const [activeFolder, setActiveFolder] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -56,7 +55,6 @@ const App: React.FC = () => {
         type: activeView,
         favoritesOnly,
         search: searchQuery,
-        folder: activeFolder,
       });
 
       setMediaItems(prev => reset ? response.items : [...prev, ...response.items]);
@@ -69,7 +67,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, hasMore, page, activeSort, activeView, favoritesOnly, searchQuery, activeFolder]);
+  }, [isLoading, hasMore, page, activeSort, activeView, favoritesOnly, searchQuery]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -84,7 +82,7 @@ const App: React.FC = () => {
       await loadMedia(true);
     };
     freshLoad();
-  }, [searchQuery, activeView, activeSort, favoritesOnly, activeFolder, isAuthenticated]);
+  }, [searchQuery, activeView, activeSort, favoritesOnly, isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -181,8 +179,6 @@ const App: React.FC = () => {
       <Sidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 
-        activeFolder={activeFolder}
-        setActiveFolder={setActiveFolder}
       />
       <div className="flex-1 flex flex-col h-screen">
         <Header 
@@ -195,7 +191,7 @@ const App: React.FC = () => {
           favoritesOnly={favoritesOnly}
           setFavoritesOnly={setFavoritesOnly}
         />
-        <main ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+        <main ref={scrollContainerRef} className="flex-1 overflow-y-auto pb-16 md:pb-0">
           <div className="p-4 sm:p-6 md:p-8">
               {mediaItems.length > 0 ? (
                   <MediaGrid 
