@@ -1,27 +1,23 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background, consistent with the original -->
+  <!-- Background with rounded corners matching the slate theme -->
   <rect width="512" height="512" rx="96" fill="#0F172A"/>
   
-  <!-- Rabbit Body/Head (a simple shape) -->
-  <path d="M256 420C188 420 144 372.455 144 324C144 260 188 220 256 220C324 220 368 260 368 324C368 372.455 324 420 256 420Z" fill="#E2E8F0"/>
+  <!-- Cat Face -->
+  <path d="M128 416C128 349.333 181.333 296 256 296C330.667 296 384 349.333 384 416H128Z" fill="#E2E8F0"/>
   
-  <!-- Rabbit Ears -->
-  <path d="M196 244C196 172 168 120 168 120C168 120 200 176 216 252C222.18 280.44 218.01 304.75 210 324" fill="#E2E8F0"/>
-  <path d="M316 244C316 172 344 120 344 120C344 120 312 176 296 252C289.82 280.44 293.99 304.75 302 324" fill="#E2E8F0"/>
+  <!-- Cat Ears -->
+  <path d="M128 200C128 150.321 154.321 124 204 124H208C212.418 124 216 127.582 216 132V296H128V200Z" fill="#E2E8F0"/>
+  <path d="M384 200C384 150.321 357.679 124 308 124H304C299.582 124 296 127.582 296 132V296H384V200Z" fill="#E2E8F0"/>
   
-  <!-- Inner Ears -->
-  <path d="M188 220C188 172 178 144 178 144C178 144 198 184 208 248" fill="#CBD5E1"/>
-  <path d="M324 220C324 172 334 144 334 144C334 144 314 184 304 248" fill="#CBD5E1"/>
-
   <!-- Eyes -->
-  <circle cx="224" cy="292" r="16" fill="#1E293B"/>
-  <circle cx="288" cy="292" r="16" fill="#1E293B"/>
-
-  <!-- Nose -->
-  <path d="M256 328L246 340H266L256 328Z" fill="#1E293B"/>
-
-  <!-- Bowtie (boyish element, using accent color) -->
-  <path d="M256 368L232 384V352L256 368Z" fill="#4F46E5"/>
-  <path d="M256 368L280 384V352L256 368Z" fill="#4F46E5"/>
-  <circle cx="256" cy="368" r="8" fill="#6366F1"/>
+  <circle cx="204" cy="244" r="28" fill="#1E293B"/>
+  <circle cx="308" cy="244" r="28" fill="#1E293B"/>
+  
+  <!-- Eye Sparkle, hinting at "璟" (luster of jade) -->
+  <circle cx="320" cy="232" r="8" fill="white"/>
+  
+  <!-- Nose and Mouth, using the indigo accent color -->
+  <path d="M256 320C264.837 320 272 327.163 272 336V344H240V336C240 327.163 247.163 320 256 320Z" fill="#4F46E5"/>
+  <path d="M256 344L224 368" stroke="#4F46E5" stroke-width="12" stroke-linecap="round"/>
+  <path d="M256 344L288 368" stroke="#4F46E5" stroke-width="12" stroke-linecap="round"/>
 </svg>

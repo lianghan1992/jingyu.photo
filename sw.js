@@ -1,10 +1,9 @@
-const CACHE_NAME = 'jingyu-today-cache-v4'; // Bump version to force update
+const CACHE_NAME = 'jingyu-today-cache-v3'; // Bump version to force update
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icons/icon.svg',
-  '/index.tsx'
+  '/icons/icon.svg'
 ];
 
 self.addEventListener('install', event => {
@@ -28,7 +27,7 @@ self.addEventListener('fetch', event => {
   // to get the latest version, then fall back to cache.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
+      fetch(event.request).catch(() => caches.match('/'))
     );
     return;
   }

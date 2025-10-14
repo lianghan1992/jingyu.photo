@@ -1,7 +1,7 @@
 {
   "name": "璟聿.today",
   "short_name": "璟聿",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#020617",
   "theme_color": "#020617",

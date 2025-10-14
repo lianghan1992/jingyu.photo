@@ -1,7 +1,6 @@
 import React from 'react';
 import { SearchIcon, HeartIcon, HeartSolidIcon, LibraryIcon, PhotoIcon, VideoIcon } from './Icons';
 import TimeSelector, { TimeView } from './TimeSelector';
-import SortSelector from './SortSelector';
 import { ViewType } from './FolderSelector';
 
 type SortType = 'newest' | 'oldest';
@@ -40,7 +39,9 @@ const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center justify-between gap-4 max-w-screen-2xl mx-auto">
         {/* Site Title/Logo */}
         <div className="flex items-center gap-3">
-          <img src="/icons/icon.svg" alt="璟聿今日 Logo" className="w-8 h-8 rounded-lg" />
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-md shadow-inner">
+            璟
+          </div>
           <span className="hidden md:block text-lg font-bold text-slate-100">
             璟聿今日
           </span>
@@ -93,7 +94,15 @@ const Header: React.FC<HeaderProps> = ({
             <TimeSelector activeView={timeView} setActiveView={setTimeView} />
             
             {/* 5. New/Old */}
-            <SortSelector activeSort={activeSort} setActiveSort={setActiveSort} />
+            <select 
+              value={activeSort}
+              onChange={(e) => setActiveSort(e.target.value as SortType)}
+              className="text-sm font-medium text-slate-400 bg-slate-800 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 transition-colors hover:bg-slate-700/80 border-transparent focus:border-indigo-500"
+              aria-label="Sort media"
+            >
+              <option value="newest">新</option>
+              <option value="oldest">旧</option>
+            </select>
         </div>
       </div>
     </header>
