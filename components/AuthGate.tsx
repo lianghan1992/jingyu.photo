@@ -36,8 +36,7 @@ const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 p-4">
       <div className="w-full max-w-sm mx-auto animate-fade-in">
         <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-slate-100">璟聿.today</h1>
-            <p className="text-slate-400 mt-2">亲友访问通道</p>
+            <h1 className="text-4xl font-bold text-slate-100">璟聿今日</h1>
         </div>
         <form 
           onSubmit={handleSubmit} 
