@@ -28,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
             璟
           </div>
           <span className="text-xl font-bold text-slate-100">
-            璟聿.today
+            璟聿今日
           </span>
         </div>
         <nav>

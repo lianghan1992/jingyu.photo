@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with rounded corners matching the slate theme -->
+  <rect width="512" height="512" rx="96" fill="#0F172A"/>
+  
+  <!-- Cat Face -->
+  <path d="M128 416C128 349.333 181.333 296 256 296C330.667 296 384 349.333 384 416H128Z" fill="#E2E8F0"/>
+  
+  <!-- Cat Ears -->
+  <path d="M128 200C128 150.321 154.321 124 204 124H208C212.418 124 216 127.582 216 132V296H128V200Z" fill="#E2E8F0"/>
+  <path d="M384 200C384 150.321 357.679 124 308 124H304C299.582 124 296 127.582 296 132V296H384V200Z" fill="#E2E8F0"/>
+  
+  <!-- Eyes -->
+  <circle cx="204" cy="244" r="28" fill="#1E293B"/>
+  <circle cx="308" cy="244" r="28" fill="#1E293B"/>
+  
+  <!-- Eye Sparkle, hinting at "璟" (luster of jade) -->
+  <circle cx="320" cy="232" r="8" fill="white"/>
+  
+  <!-- Nose and Mouth, using the indigo accent color -->
+  <path d="M256 320C264.837 320 272 327.163 272 336V344H240V336C240 327.163 247.163 320 256 320Z" fill="#4F46E5"/>
+  <path d="M256 344L224 368" stroke="#4F46E5" stroke-width="12" stroke-linecap="round"/>
+  <path d="M256 344L288 368" stroke="#4F46E5" stroke-width="12" stroke-linecap="round"/>
+</svg>
