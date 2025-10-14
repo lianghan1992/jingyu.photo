@@ -39,9 +39,7 @@ const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center justify-between gap-4 max-w-screen-2xl mx-auto">
         {/* Site Title/Logo */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-md shadow-inner">
-            璟
-          </div>
+          <img src="/icons/icon.svg" alt="璟聿今日 Logo" className="w-8 h-8 rounded-lg" />
           <span className="hidden md:block text-lg font-bold text-slate-100">
             璟聿今日
           </span>
