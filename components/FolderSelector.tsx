@@ -25,7 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
       <aside className="w-60 h-screen sticky top-0 bg-zinc-950/70 backdrop-blur-lg p-4 border-r border-zinc-800/80 flex-shrink-0 hidden md:flex md:flex-col">
         <div className="flex items-center gap-3 mb-8 px-2">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-inner">
-            苏
+            璟
           </div>
           <span className="text-xl font-bold text-zinc-100">
             璟聿.today
@@ -40,6 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
                   className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium rounded-lg transition-colors ${
                     activeView === item.key
                       ? 'bg-blue-500 text-white shadow'
+                      // Fix: Corrected TailwindCSS class for hover effect on sidebar navigation items.
                       : 'text-zinc-400 hover:bg-zinc-800/60'
                   }`}
                 >

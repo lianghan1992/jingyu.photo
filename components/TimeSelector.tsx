@@ -9,9 +9,9 @@ interface TimeSelectorProps {
 
 const TimeSelector: React.FC<TimeSelectorProps> = ({ activeView, setActiveView }) => {
   const views: { key: TimeView, label: string }[] = [
-    { key: 'years', label: '年份' },
-    { key: 'months', label: '月份' },
-    { key: 'days', label: '日期' },
+    { key: 'years', label: '年' },
+    { key: 'months', label: '月' },
+    { key: 'days', label: '日' },
   ];
 
   return (
