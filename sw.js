@@ -1,63 +1,50 @@
-const CACHE_NAME = 'jingyu-today-cache-v1';
+const CACHE_NAME = 'jingyu-today-cache-v2'; // Bump version to force update
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/icons/icon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
 ];
 
-// Install event: open a cache and add the app shell files to it
 self.addEventListener('install', event => {
+  // Perform install steps
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache');
+        console.log('Opened cache and caching app shell');
         return cache.addAll(urlsToCache);
       })
   );
 });
 
-// Fetch event: serve cached content when offline
 self.addEventListener('fetch', event => {
+  // We only want to cache GET requests.
+  if (event.request.method !== 'GET') {
+    return;
+  }
+  
+  // For navigation requests (e.g., loading the page), try network first
+  // to get the latest version, then fall back to cache.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/'))
+    );
+    return;
+  }
+
+  // For all other requests (assets, etc.), use a cache-first strategy.
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-
-        // Not in cache, go to the network
-        return fetch(event.request).then(
-          response => {
-            // Check if we received a valid response
-            if(!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // IMPORTANT: Clone the response. A response is a stream
-            // and because we want the browser to consume the response
-            // as well as the cache consuming the response, we need
-            // to clone it so we have two streams.
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                // We don't cache API calls or video streams
-                if (!event.request.url.includes('/api/') && !event.request.url.includes('.m3u8') && !event.request.url.includes('.ts')) {
-                    cache.put(event.request, responseToCache);
-                }
-              });
-
-            return response;
-          }
-        );
-      })
+    caches.match(event.request).then(response => {
+      // If the request is in the cache, return it.
+      // Otherwise, fetch it from the network.
+      return response || fetch(event.request);
+    })
   );
 });
 
-// Activate event: remove old caches
+
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -65,6 +52,7 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
