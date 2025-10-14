@@ -6,8 +6,7 @@ import { ViewType } from './FolderSelector';
 type SortType = 'newest' | 'oldest';
 
 interface HeaderProps {
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
+  openSearch: () => void;
   activeSort: SortType;
   setActiveSort: (sort: SortType) => void;
   timeView: TimeView;
@@ -19,8 +18,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ 
-  searchQuery, 
-  setSearchQuery, 
+  openSearch, 
   activeSort, 
   setActiveSort,
   timeView,
@@ -39,20 +37,24 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-20 bg-slate-950/80 backdrop-blur-lg border-b border-slate-800/80 px-4 sm:px-6 md:px-8 py-3">
       <div className="flex items-center justify-between gap-4 max-w-screen-2xl mx-auto">
-        <div className="flex-1 max-w-2xl">
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <SearchIcon className="w-5 h-5 text-slate-500" />
-            </span>
-            <input
-              type="text"
-              placeholder="搜索照片、标签或地点..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-700/60 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition bg-slate-800/70 hover:border-slate-600/80 text-slate-200 placeholder-slate-500"
-              aria-label="Search media"
-            />
-          </div>
+        <div className="flex items-center gap-2">
+            <button 
+                onClick={openSearch}
+                className="p-2 rounded-lg text-slate-400 hover:bg-slate-700/80 transition-colors md:hidden"
+                aria-label="搜索"
+            >
+                <SearchIcon className="w-5 h-5" />
+            </button>
+            <div className="hidden md:block flex-1 max-w-2xl">
+                <button
+                    onClick={openSearch}
+                    className="w-full text-left pl-4 pr-4 py-2 border border-slate-700/60 rounded-lg transition bg-slate-800/70 hover:border-slate-600/80 text-slate-500 flex items-center gap-2"
+                    aria-label="Search media"
+                >
+                    <SearchIcon className="w-5 h-5" />
+                    搜索照片、标签或地点...
+                </button>
+            </div>
         </div>
         
         <div className="flex items-center gap-2 md:gap-4">
@@ -93,8 +95,8 @@ const Header: React.FC<HeaderProps> = ({
               className="text-sm font-medium text-slate-400 bg-slate-800 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 transition-colors hover:bg-slate-700/80 border-transparent focus:border-indigo-500"
               aria-label="Sort media"
             >
-              <option value="newest">最新</option>
-              <option value="oldest">最旧</option>
+              <option value="newest">新</option>
+              <option value="oldest">旧</option>
             </select>
         </div>
       </div>

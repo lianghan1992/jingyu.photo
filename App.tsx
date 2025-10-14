@@ -4,6 +4,7 @@ import Header from './components/Header';
 import Sidebar, { ViewType } from './components/FolderSelector';
 import MediaGrid from './components/MediaGrid';
 import Modal from './components/Modal';
+import SearchModal from './components/SearchModal';
 import AuthGate from './components/AuthGate';
 import { TimeView } from './components/TimeSelector';
 import { fetchMedia, toggleFavorite } from './services/api';
@@ -26,6 +27,7 @@ const App: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   
   const scrollContainerRef = useRef<HTMLElement>(null);
 
@@ -182,8 +184,7 @@ const App: React.FC = () => {
       />
       <div className="flex-1 flex flex-col h-screen min-w-0">
         <Header 
-          searchQuery={searchQuery} 
-          setSearchQuery={setSearchQuery}
+          openSearch={() => setIsSearchOpen(true)}
           activeSort={activeSort}
           setActiveSort={setActiveSort}
           timeView={timeView}
@@ -221,6 +222,14 @@ const App: React.FC = () => {
           </div>
         </main>
       </div>
+
+      {isSearchOpen && (
+        <SearchModal 
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onClose={() => setIsSearchOpen(false)}
+        />
+      )}
 
       {selectedItem && (
         <Modal 
