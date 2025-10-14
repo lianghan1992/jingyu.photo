@@ -180,7 +180,7 @@ const App: React.FC = () => {
         activeView={activeView} 
         setActiveView={setActiveView} 
       />
-      <div className="flex-1 flex flex-col h-screen">
+      <div className="flex-1 flex flex-col h-screen min-w-0">
         <Header 
           searchQuery={searchQuery} 
           setSearchQuery={setSearchQuery}

@@ -1,11 +1,9 @@
-const CACHE_NAME = 'jingyu-today-cache-v2'; // Bump version to force update
+const CACHE_NAME = 'jingyu-today-cache-v3'; // Bump version to force update
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icons/icon.svg',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/icon.svg'
 ];
 
 self.addEventListener('install', event => {
