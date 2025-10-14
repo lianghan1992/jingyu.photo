@@ -50,7 +50,7 @@ const MediaItemCard: React.FC<MediaItemCardProps> = ({ item, onClick, onToggleFa
 
   return (
     <div 
-      className="group aspect-square relative overflow-hidden rounded-lg cursor-pointer bg-zinc-800"
+      className="group aspect-square relative overflow-hidden rounded-lg cursor-pointer bg-slate-800"
       onClick={onClick}
       role="button"
       aria-label={`View ${item.fileName}`}
@@ -64,7 +64,7 @@ const MediaItemCard: React.FC<MediaItemCardProps> = ({ item, onClick, onToggleFa
         />
       ) : (
         // Simple placeholder while loading
-        <div className="w-full h-full bg-zinc-800"></div>
+        <div className="w-full h-full bg-slate-800"></div>
       )}
       
       {item.fileType === 'video' && (

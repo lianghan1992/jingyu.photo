@@ -175,7 +175,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex bg-zinc-900 min-h-screen text-zinc-200">
+    <div className="flex bg-slate-900 min-h-screen text-slate-300">
       <Sidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 
@@ -204,17 +204,17 @@ const App: React.FC = () => {
               ) : (
                 !isLoading && !error && (
                   <div className="text-center py-20">
-                      <p className="text-zinc-500 text-lg">没有找到匹配的项目。</p>
+                      <p className="text-slate-500 text-lg">没有找到匹配的项目。</p>
                   </div>
                 )
               )}
               {isLoading && (
-                 <div className="text-center py-10 text-zinc-400">
+                 <div className="text-center py-10 text-slate-400">
                     加载中...
                  </div>
               )}
               {error && (
-                <div className="text-center py-10 text-red-500">
+                <div className="text-center py-10 text-red-400">
                    {error}
                 </div>
               )}

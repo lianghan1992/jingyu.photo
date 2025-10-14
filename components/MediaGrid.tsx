@@ -15,7 +15,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ items, onItemClick, onToggleFavor
       {/* Fix: Changed from Object.entries to Object.keys to resolve a TypeScript inference issue where the media array was being typed as 'unknown'. */}
       {Object.keys(items).map((date) => (
         <div key={date}>
-          <h2 className="text-2xl font-bold text-zinc-100 mb-4 px-1">{date}</h2>
+          <h2 className="text-2xl font-bold text-slate-200 mb-4 px-1">{date}</h2>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4">
             {items[date].map((item) => (
               <MediaItemCard

@@ -28,8 +28,8 @@ const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
   if (!value) return null;
   return (
     <div className="flex justify-between">
-      <span className="text-white/60">{label}</span>
-      <span className="truncate">{value}</span>
+      <span className="text-slate-400">{label}</span>
+      <span className="truncate text-slate-200">{value}</span>
     </div>
   );
 };
@@ -60,19 +60,19 @@ const DetailsPanelContent: React.FC<{ item: MediaItem }> = ({ item }) => {
 
   return (
     <>
-      <div className="w-10 h-1 bg-white/30 rounded-full mx-auto mb-3 md:hidden" aria-hidden="true" />
-      <h2 className="text-xl font-bold mb-1">{item.aiTitle || item.fileName}</h2>
-      <p className="text-sm text-white/60 mb-4">{formattedDate}</p>
+      <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto mb-3 md:hidden" aria-hidden="true" />
+      <h2 className="text-xl font-bold text-slate-100 mb-1">{item.aiTitle || item.fileName}</h2>
+      <p className="text-sm text-slate-400 mb-4">{formattedDate}</p>
       
       {item.aiTags && item.aiTags.length > 0 && (
           <div className="mb-6">
-              <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-white/60 mb-2">
+              <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500 mb-2">
                   <TagIcon className="w-4 h-4" />
                   AI 标签
               </h3>
               <div className="flex flex-wrap gap-2">
                   {item.aiTags.map(tag => (
-                      <span key={tag} className="bg-white/10 text-sm px-2.5 py-1 rounded-full">{tag}</span>
+                      <span key={tag} className="bg-slate-700/60 text-slate-300 text-sm px-2.5 py-1 rounded-full">{tag}</span>
                   ))}
               </div>
           </div>
@@ -80,7 +80,7 @@ const DetailsPanelContent: React.FC<{ item: MediaItem }> = ({ item }) => {
       
       {metadata && (
           <div>
-              <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-white/60 mb-3">
+              <h3 className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500 mb-3">
                   <InfoIcon className="w-4 h-4" />
                   详细信息
               </h3>
@@ -264,7 +264,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     >
         <button 
             onClick={onClose} 
-            className="absolute top-2 right-2 sm:top-4 sm:right-4 text-white/70 hover:text-white transition-colors z-[60]"
+            className="absolute top-2 right-2 sm:top-4 sm:right-4 text-slate-300/70 hover:text-slate-100 transition-colors z-[60]"
             aria-label="关闭"
         >
             <CloseIcon className="w-8 h-8" />
@@ -272,7 +272,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         
         <button
           onClick={() => onNavigate('prev')}
-          className="absolute left-1 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-[60]"
+          className="absolute left-1 top-1/2 -translate-y-1/2 p-2 text-slate-300/70 hover:text-slate-100 hover:bg-black/20 rounded-full transition-all z-[60]"
           aria-label="上一个"
         >
           <ChevronLeftIcon className="w-8 h-8" />
@@ -280,7 +280,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
 
         <button
           onClick={() => onNavigate('next')}
-          className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all z-[60]"
+          className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-300/70 hover:text-slate-100 hover:bg-black/20 rounded-full transition-all z-[60]"
           aria-label="下一个"
         >
           <ChevronRightIcon className="w-8 h-8" />
@@ -290,14 +290,14 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
             <div className="flex-1 flex items-center justify-center relative min-h-0">
                 {error ? (
                     <div className="flex items-center justify-center h-full w-full bg-black/10 rounded-lg">
-                        <p className="text-white/60">媒体加载失败</p>
+                        <p className="text-slate-500">媒体加载失败</p>
                     </div>
                 ) : !isReady ? (
                     <div className="relative w-full h-full flex items-center justify-center">
                         {placeholderSrc && (
                             <img src={placeholderSrc} alt="正在加载..." className="max-w-full max-h-full object-contain blur-sm brightness-75" />
                         )}
-                        <div className="absolute text-white/80 bg-black/30 px-4 py-2 rounded-lg font-semibold">加载中...</div>
+                        <div className="absolute text-slate-200 bg-black/30 px-4 py-2 rounded-lg font-semibold">加载中...</div>
                     </div>
                 ) : (
                   <>
@@ -327,8 +327,8 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                     <div className="flex justify-between items-end gap-4">
                       {/* Left side: Info */}
                       <div className="min-w-0">
-                          <h2 className="font-bold text-lg truncate">{item.aiTitle || item.fileName}</h2>
-                          <p className="text-sm text-white/80">{formattedDate}</p>
+                          <h2 className="font-bold text-lg text-slate-100 truncate">{item.aiTitle || item.fileName}</h2>
+                          <p className="text-sm text-slate-300">{formattedDate}</p>
                           {item.aiTags && item.aiTags.length > 0 && (
                               <div className="flex flex-wrap gap-1.5 mt-2">
                                   {item.aiTags.slice(0, 5).map(tag => (
@@ -340,15 +340,15 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
 
                       {/* Right side: Actions */}
                       <div className="flex items-center flex-shrink-0 gap-4 sm:gap-5">
-                          <button onClick={() => onToggleFavorite(item.uid)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors text-center" aria-label={item.isFavorite ? '取消收藏' : '收藏'}>
+                          <button onClick={() => onToggleFavorite(item.uid)} className="flex flex-col items-center text-slate-200 hover:text-white transition-colors text-center" aria-label={item.isFavorite ? '取消收藏' : '收藏'}>
                               {item.isFavorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
                               <span className="text-xs mt-1 md:sr-only">{item.isFavorite ? '已收藏' : '收藏'}</span>
                           </button>
-                          <a href={item.downloadUrl} download className="flex flex-col items-center text-white/90 hover:text-white transition-colors text-center" aria-label="下载">
+                          <a href={item.downloadUrl} download className="flex flex-col items-center text-slate-200 hover:text-white transition-colors text-center" aria-label="下载">
                               <DownloadIcon className="w-6 h-6" />
                               <span className="text-xs mt-1 md:sr-only">下载</span>
                           </a>
-                          <button onClick={() => setShowDetails(!showDetails)} className="flex flex-col items-center text-white/90 hover:text-white transition-colors text-center" aria-label="显示详细信息">
+                          <button onClick={() => setShowDetails(!showDetails)} className="flex flex-col items-center text-slate-200 hover:text-white transition-colors text-center" aria-label="显示详细信息">
                               <InfoIcon className="w-6 h-6" />
                               <span className="text-xs mt-1 md:sr-only">信息</span>
                           </button>
@@ -359,7 +359,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
             </div>
             {/* --- DESKTOP SIDEBAR --- */}
             {showDetails && (
-              <aside className="hidden md:flex w-full md:w-[380px] lg:w-[420px] flex-shrink-0 bg-zinc-900/80 backdrop-blur-xl rounded-lg text-white/90 p-4 md:p-6 flex-col overflow-y-auto animate-fade-in">
+              <aside className="hidden md:flex w-full md:w-[380px] lg:w-[420px] flex-shrink-0 bg-slate-900/80 backdrop-blur-xl rounded-lg text-slate-200 p-4 md:p-6 flex-col overflow-y-auto animate-fade-in">
                   <DetailsPanelContent item={item} />
               </aside>
             )}
@@ -374,7 +374,7 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
             >
                 <aside
                     onClick={e => e.stopPropagation()}
-                    className="absolute bottom-0 left-0 right-0 w-full max-h-[60vh] bg-zinc-900 rounded-t-xl text-white/90 p-4 flex flex-col overflow-y-auto animate-slide-up"
+                    className="absolute bottom-0 left-0 right-0 w-full max-h-[60vh] bg-slate-900 rounded-t-xl text-slate-200 p-4 flex flex-col overflow-y-auto animate-slide-up"
                     role="dialog"
                     aria-modal="true"
                     aria-label="详细信息"

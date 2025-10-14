@@ -15,15 +15,15 @@ const TimeSelector: React.FC<TimeSelectorProps> = ({ activeView, setActiveView }
   ];
 
   return (
-    <div className="flex items-center gap-1 bg-zinc-800 p-1 rounded-lg">
+    <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-lg">
       {views.map(view => (
         <button
           key={view.key}
           onClick={() => setActiveView(view.key)}
           className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${
             activeView === view.key
-              ? 'bg-zinc-200 text-zinc-900 shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200'
+              ? 'bg-slate-300 text-slate-900 shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
           }`}
           aria-pressed={activeView === view.key}
         >

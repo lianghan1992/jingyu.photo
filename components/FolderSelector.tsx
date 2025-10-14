@@ -22,12 +22,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="w-60 h-screen sticky top-0 bg-zinc-950/70 backdrop-blur-lg p-4 border-r border-zinc-800/80 flex-shrink-0 hidden md:flex md:flex-col">
+      <aside className="w-60 h-screen sticky top-0 bg-slate-950/70 backdrop-blur-lg p-4 border-r border-slate-800/80 flex-shrink-0 hidden md:flex md:flex-col">
         <div className="flex items-center gap-3 mb-8 px-2">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-inner">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-lg shadow-inner">
             璟
           </div>
-          <span className="text-xl font-bold text-zinc-100">
+          <span className="text-xl font-bold text-slate-100">
             璟聿.today
           </span>
         </div>
@@ -39,9 +39,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
                   onClick={() => handleViewClick(item.key)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium rounded-lg transition-colors ${
                     activeView === item.key
-                      ? 'bg-blue-500 text-white shadow'
-                      // Fix: Corrected TailwindCSS class for hover effect on sidebar navigation items.
-                      : 'text-zinc-400 hover:bg-zinc-800/60'
+                      ? 'bg-indigo-600 text-white shadow'
+                      : 'text-slate-400 hover:bg-slate-800/60'
                   }`}
                 >
                   <item.icon className="w-5 h-5" />

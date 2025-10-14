@@ -33,15 +33,15 @@ const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-black p-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 p-4">
       <div className="w-full max-w-sm mx-auto animate-fade-in">
         <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-zinc-100">璟聿.today</h1>
-            <p className="text-zinc-400 mt-2">亲友访问通道</p>
+            <h1 className="text-4xl font-bold text-slate-100">璟聿.today</h1>
+            <p className="text-slate-400 mt-2">亲友访问通道</p>
         </div>
         <form 
           onSubmit={handleSubmit} 
-          className="bg-zinc-900 p-8 rounded-2xl shadow-lg"
+          className="bg-slate-900 p-8 rounded-2xl shadow-lg"
         >
           <div className="space-y-4">
             <div>
@@ -52,7 +52,7 @@ const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
                 value={inputCode}
                 onChange={(e) => setInputCode(e.target.value)}
                 placeholder="请输入访问口令"
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-lg text-center text-zinc-200 placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-lg text-center text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
                 aria-describedby="error-message"
                 autoFocus
               />
@@ -60,13 +60,13 @@ const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
             <button
               type="submit"
               disabled={isSubmitting || !inputCode}
-              className="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg text-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-500/50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg text-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-600/50 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? '验证中...' : '进入相册'}
             </button>
           </div>
           {error && (
-            <p id="error-message" className="text-red-500 text-center text-sm mt-4 animate-fade-in" role="alert">
+            <p id="error-message" className="text-red-400 text-center text-sm mt-4 animate-fade-in" role="alert">
               {error}
             </p>
           )}
