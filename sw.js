@@ -22,11 +22,15 @@ self.addEventListener('fetch', event => {
     return;
   }
   
-  // For navigation requests (e.g., loading the page), try network first
-  // to get the latest version, then fall back to cache.
+  // For navigation requests (e.g., loading the page), serve the
+  // cached index.html first. This provides a fast, reliable app-like experience
+  // and bypasses potential server misconfigurations for the root URL.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/'))
+      caches.match('/index.html').then(response => {
+        // Fallback to network if index.html is not in cache for some reason.
+        return response || fetch(event.request);
+      })
     );
     return;
   }
