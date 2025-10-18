@@ -8,10 +8,10 @@
   "description": "一个现代化的智能家庭相册，旨在通过AI技术帮助您整理、发现和重温生活中的珍贵回忆。",
   "icons": [
     {
-      "src": "https://api.iconify.design/ph/rabbit-bold.svg",
+      "src": "https://api.iconify.design/ph/rabbit-bold.svg?color=%23f1f5f9",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

@@ -38,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center justify-between gap-4 max-w-screen-2xl mx-auto">
         {/* Site Title/Logo */}
         <div className="flex items-center gap-3">
-          <img src="https://api.iconify.design/ph/rabbit-bold.svg?color=%23f1f5f9" alt="璟聿今日 Logo" className="w-8 h-8" />
+          <img src="https://api.iconify.design/ph/rabbit-bold.svg?color=%23f1f5f9" alt="璟聿今日 Logo" className="w-9 h-9" />
           <span className="hidden md:block text-lg font-bold text-slate-100">
             璟聿今日
           </span>
