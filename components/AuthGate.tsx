@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { authenticate } from '../services/api';
-
-const STORAGE_KEY = 'jingyu-today-auth-token';
+import { login } from '../services/api';
 
 interface AuthGateProps {
   onAuthenticated: () => void;
@@ -20,8 +18,9 @@ const AuthGate: React.FC<AuthGateProps> = ({ onAuthenticated }) => {
     setError(null);
 
     try {
-      const token = await authenticate(inputCode.trim());
-      localStorage.setItem(STORAGE_KEY, token);
+      // Use the new login function which handles storing the token
+      // in both localStorage and IndexedDB.
+      await login(inputCode.trim());
       onAuthenticated();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : '发生未知错误';

@@ -181,8 +181,8 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
     if (!isReady || item.fileType !== 'video' || !videoElement) return;
 
     let isCancelled = false;
-    let objectUrl: string | null = null;
     let hlsInstance: any | null = null;
+    
     const handleCanPlay = () => {
       if (!isCancelled) {
         const playPromise = videoElement.play();
@@ -192,12 +192,14 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
       }
     };
     videoElement.addEventListener('canplay', handleCanPlay);
+    
     const cleanup = () => {
       isCancelled = true;
       videoElement.removeEventListener('canplay', handleCanPlay);
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      videoElement.src = ''; // Detach src to stop download
       if (hlsInstance) hlsInstance.destroy();
     };
+    
     const setupVideo = async () => {
       try {
         if (item.hlsPlaybackUrl && typeof Hls !== 'undefined' && Hls.isSupported()) {
@@ -212,8 +214,9 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
             if (data.fatal && !isCancelled) setError(true);
           });
         } else if (item.url) {
-          objectUrl = await fetchAuthenticatedBlobUrl(item.url);
-          if (!isCancelled) videoElement.src = objectUrl;
+          // Directly set the src. The service worker will intercept this request
+          // and add the necessary Authorization header for streaming.
+          videoElement.src = item.url;
         }
       } catch (err) {
         console.error("Failed to setup video:", err);

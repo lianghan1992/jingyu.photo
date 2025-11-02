@@ -3,6 +3,75 @@ import type { MediaItem } from '../types';
 const API_BASE = '/api';
 const STORAGE_KEY = 'jingyu-today-auth-token';
 
+// --- IndexedDB Helpers for Service Worker Auth ---
+const DB_NAME = 'jingyu-today-db';
+const DB_VERSION = 1;
+const STORE_NAME = 'auth';
+const TOKEN_KEY = 'authToken';
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(new Error(`IndexedDB error: ${request.error?.message}`));
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+  });
+}
+
+async function setTokenInDb(token: string): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    try {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put(token, TOKEN_KEY);
+      request.onerror = () => reject(new Error(`IndexedDB put error: ${request.error?.message}`));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(new Error(`IndexedDB transaction error: ${transaction.error?.message}`));
+    } catch (error) {
+        reject(error);
+    } finally {
+        db.close();
+    }
+  });
+}
+
+async function clearTokenFromDb(): Promise<void> {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        try {
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.delete(TOKEN_KEY);
+            request.onerror = () => reject(new Error(`IndexedDB delete error: ${request.error?.message}`));
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(new Error(`IndexedDB transaction error: ${transaction.error?.message}`));
+        } catch (error) {
+            reject(error);
+        } finally {
+            db.close();
+        }
+    });
+}
+
+// --- Auth Functions ---
+export async function login(password: string): Promise<void> {
+    const token = await authenticateAndGetToken(password);
+    localStorage.setItem(STORAGE_KEY, token);
+    await setTokenInDb(token);
+}
+
+export async function logout(): Promise<void> {
+    localStorage.removeItem(STORAGE_KEY);
+    await clearTokenFromDb();
+    window.location.reload();
+}
+
 // A helper function to handle API requests with authorization and error handling.
 async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = new Headers(options.headers || {});
@@ -17,9 +86,7 @@ async function apiFetch(url: string, options: RequestInit = {}): Promise<Respons
   if (!response.ok) {
     // If the token is invalid or expired, the server should return 401.
     if (response.status === 401) {
-      localStorage.removeItem(STORAGE_KEY);
-      // Force a reload to show the login gate.
-      window.location.reload();
+      await logout(); // Use the new logout function
       // Throw an error to stop the current execution flow.
       throw new Error('认证失败，请重新登录。');
     }
@@ -69,7 +136,8 @@ interface FetchMediaResponse {
   items: MediaItem[];
 }
 
-export async function authenticate(password: string): Promise<string> {
+// Renamed from 'authenticate' to be more specific. UI should use 'login'.
+async function authenticateAndGetToken(password: string): Promise<string> {
     const response = await fetch(`${API_BASE}/auth/token`, {
         method: 'POST',
         headers: {
