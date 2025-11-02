@@ -195,12 +195,12 @@ const MediaSlide: React.FC<{ item: MediaItem; isActive: boolean; isPreloading?: 
     }, [item, isActive]);
 
     if (error) {
-        return <div className="w-full h-full flex-shrink-0 flex items-center justify-center bg-black/10 rounded-lg"> <p className="text-slate-500">媒体加载失败</p> </div>;
+        return <div className="w-1/3 h-full flex-shrink-0 flex items-center justify-center bg-black/10 rounded-lg p-1"> <p className="text-slate-500">媒体加载失败</p> </div>;
     }
 
     if (!isReady) {
         return (
-            <div className="w-full h-full flex-shrink-0 relative flex items-center justify-center">
+            <div className="w-1/3 h-full flex-shrink-0 relative flex items-center justify-center p-1">
                 {placeholderSrc && <img src={placeholderSrc} alt="正在加载..." className="max-w-full max-h-full object-contain blur-sm brightness-75" />}
                 <div className="absolute text-slate-200 bg-black/30 px-4 py-2 rounded-lg font-semibold">加载中...</div>
             </div>
@@ -208,7 +208,7 @@ const MediaSlide: React.FC<{ item: MediaItem; isActive: boolean; isPreloading?: 
     }
     
     return (
-        <div className="w-full h-full flex-shrink-0 flex items-center justify-center">
+        <div className="w-1/3 h-full flex-shrink-0 flex items-center justify-center p-1">
             {item.fileType === 'image' && mediaSrc && <img src={mediaSrc} alt={item.fileName} className="max-w-full max-h-full object-contain" />}
             {item.fileType === 'video' && (
                 <video 
@@ -405,9 +405,9 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
         
         <div className="flex-1 w-full flex items-center justify-center relative min-h-0 overflow-hidden">
              <div style={trackStyle}>
-                {prevItem ? <MediaSlide item={prevItem} isActive={false} /> : <div className="w-full h-full flex-shrink-0" />}
+                {prevItem ? <MediaSlide item={prevItem} isActive={false} /> : <div className="w-1/3 h-full flex-shrink-0" />}
                 <MediaSlide item={item} isActive={true} />
-                {nextItem ? <MediaSlide item={nextItem} isActive={false} /> : <div className="w-full h-full flex-shrink-0" />}
+                {nextItem ? <MediaSlide item={nextItem} isActive={false} /> : <div className="w-1/3 h-full flex-shrink-0" />}
             </div>
         </div>
 
