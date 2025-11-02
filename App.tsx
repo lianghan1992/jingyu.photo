@@ -167,10 +167,12 @@ const App: React.FC = () => {
       
       if (newIndex >= 0 && newIndex < mediaItems.length) {
           setSelectedItemIndex(newIndex);
+          // If nearing the end, load more items
+          if (direction === 'next' && newIndex >= mediaItems.length - 5 && hasMore && !isLoading) {
+              loadMedia();
+          }
       }
   };
-
-  const selectedItem = selectedItemIndex !== null ? mediaItems[selectedItemIndex] : null;
   
   if (!isAuthenticated) {
     return <AuthGate onAuthenticated={() => setIsAuthenticated(true)} />;
@@ -231,9 +233,10 @@ const App: React.FC = () => {
         />
       )}
 
-      {selectedItem && (
+      {selectedItemIndex !== null && (
         <Modal 
-          item={selectedItem} 
+          items={mediaItems}
+          currentIndex={selectedItemIndex}
           onClose={handleCloseModal}
           onToggleFavorite={handleToggleFavorite}
           onNavigate={handleNavigation}
