@@ -29,6 +29,23 @@ interface ModalProps {
   onNavigate: (direction: 'prev' | 'next') => void;
 }
 
+const getSlideStyle = (position: -1 | 0 | 1, dragOffset: number, isDragging: boolean): React.CSSProperties => {
+  const baseTranslate = position * 100;
+  return {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    transform: `translateX(calc(${baseTranslate}% + ${dragOffset}px))`,
+    transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1.0)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0.25rem', // p-1
+  };
+};
+
 const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => {
   if (!value) return null;
   return (
@@ -195,12 +212,12 @@ const MediaSlide: React.FC<{ item: MediaItem; isActive: boolean; isPreloading?: 
     }, [item, isActive]);
 
     if (error) {
-        return <div className="w-1/3 h-full flex-shrink-0 flex items-center justify-center bg-black/10 rounded-lg p-1"> <p className="text-slate-500">媒体加载失败</p> </div>;
+        return <div className="w-full h-full flex items-center justify-center bg-black/10 rounded-lg"> <p className="text-slate-500">媒体加载失败</p> </div>;
     }
 
     if (!isReady) {
         return (
-            <div className="w-1/3 h-full flex-shrink-0 relative flex items-center justify-center p-1">
+            <div className="w-full h-full relative flex items-center justify-center">
                 {placeholderSrc && <img src={placeholderSrc} alt="正在加载..." className="max-w-full max-h-full object-contain blur-sm brightness-75" />}
                 <div className="absolute text-slate-200 bg-black/30 px-4 py-2 rounded-lg font-semibold">加载中...</div>
             </div>
@@ -208,7 +225,7 @@ const MediaSlide: React.FC<{ item: MediaItem; isActive: boolean; isPreloading?: 
     }
     
     return (
-        <div className="w-1/3 h-full flex-shrink-0 flex items-center justify-center p-1">
+        <div className="w-full h-full flex items-center justify-center">
             {item.fileType === 'image' && mediaSrc && <img src={mediaSrc} alt={item.fileName} className="max-w-full max-h-full object-contain" />}
             {item.fileType === 'video' && (
                 <video 
@@ -364,13 +381,6 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
 
   const formattedDate = item.mediaCreatedAt ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '未知日期';
 
-  const trackStyle: React.CSSProperties = {
-    display: 'flex',
-    width: '300%', // For 3 slides
-    transform: `translateX(calc(-${100 / 3}% + ${dragOffset}px))`,
-    transition: isDragging ? 'none' : 'transform 0.3s ease-out',
-  };
-
   return (
     <div 
       style={modalStyle}
@@ -404,11 +414,19 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
         </div>}
         
         <div className="flex-1 w-full flex items-center justify-center relative min-h-0 overflow-hidden">
-             <div style={trackStyle}>
-                {prevItem ? <MediaSlide item={prevItem} isActive={false} /> : <div className="w-1/3 h-full flex-shrink-0" />}
+            {prevItem && (
+                <div style={getSlideStyle(-1, dragOffset, isDragging)}>
+                    <MediaSlide item={prevItem} isActive={false} />
+                </div>
+            )}
+            <div style={getSlideStyle(0, dragOffset, isDragging)}>
                 <MediaSlide item={item} isActive={true} />
-                {nextItem ? <MediaSlide item={nextItem} isActive={false} /> : <div className="w-1/3 h-full flex-shrink-0" />}
             </div>
+            {nextItem && (
+                <div style={getSlideStyle(1, dragOffset, isDragging)}>
+                    <MediaSlide item={nextItem} isActive={false} />
+                </div>
+            )}
         </div>
 
         {/* Bottom UI Bar */}
