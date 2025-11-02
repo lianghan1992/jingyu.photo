@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { MediaItem, ImageMetadata, VideoMetadata } from '../types';
 import {
   CloseIcon,
@@ -16,6 +16,12 @@ import { fetchAuthenticatedBlobUrl } from '../services/api';
 declare const Hls: any;
 const STORAGE_KEY = 'jingyu-today-auth-token';
 
+// Interaction thresholds
+const SWIPE_THRESHOLD = 50;
+const PULL_TO_DISMISS_THRESHOLD = 80;
+const TAP_MAX_DELTA = 10;
+const TAP_MAX_DURATION = 300;
+
 interface ModalProps {
   item: MediaItem;
   onClose: () => void;
@@ -23,7 +29,6 @@ interface ModalProps {
   onNavigate: (direction: 'prev' | 'next') => void;
 }
 
-// Helper component for cleaner metadata display
 const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => {
   if (!value) return null;
   return (
@@ -34,7 +39,6 @@ const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
   );
 };
 
-// Component for the details content, used in both desktop sidebar and mobile bottom sheet
 const DetailsPanelContent: React.FC<{ item: MediaItem }> = ({ item }) => {
     const formattedDate = item.mediaCreatedAt
     ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleString('zh-CN', {
@@ -100,54 +104,67 @@ const DetailsPanelContent: React.FC<{ item: MediaItem }> = ({ item }) => {
 
 
 const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNavigate }) => {
-  const modalRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-
   const [placeholderSrc, setPlaceholderSrc] = useState<string | null>(null);
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Effect to load placeholder and then final media
+  // New state for interactions
+  const [uiVisible, setUiVisible] = useState(true);
+  const [animationClass, setAnimationClass] = useState('animate-fade-in');
+  const [dynamicStyle, setDynamicStyle] = useState<React.CSSProperties>({});
+  
+  const interactionRef = useRef({
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+      startTime: 0,
+      isDragging: false,
+  });
+
+  const handleNavigate = useCallback((direction: 'prev' | 'next') => {
+    setAnimationClass(direction === 'next' ? 'animate-slide-in-from-right' : 'animate-slide-in-from-left');
+    onNavigate(direction);
+  }, [onNavigate]);
+
   useEffect(() => {
-    // Reset state for new item
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+      else if (event.key === 'ArrowLeft') handleNavigate('prev');
+      else if (event.key === 'ArrowRight') handleNavigate('next');
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, handleNavigate]);
+
+  useEffect(() => {
     setShowDetails(false);
     setIsReady(false);
     setError(false);
     setPlaceholderSrc(null);
     setMediaSrc(null);
-
     let isMounted = true;
     let placeholderUrl: string | null = null;
     let finalMediaUrl: string | null = null;
-
     const cleanup = () => {
       isMounted = false;
       if (placeholderUrl) URL.revokeObjectURL(placeholderUrl);
       if (finalMediaUrl) URL.revokeObjectURL(finalMediaUrl);
     };
-
     const loadMedia = async () => {
       try {
-        // 1. Load placeholder thumbnail
         try {
           placeholderUrl = await fetchAuthenticatedBlobUrl(`${item.thumbnailUrl}?size=preview`);
           if (isMounted) setPlaceholderSrc(placeholderUrl);
-        } catch (e) {
-          console.warn("Could not load placeholder, proceeding without it.", e);
-        }
+        } catch (e) { console.warn("Could not load placeholder.", e); }
 
-        // 2. Load final media
         if (item.fileType === 'image') {
           finalMediaUrl = await fetchAuthenticatedBlobUrl(item.url);
-          if (isMounted) {
-            setMediaSrc(finalMediaUrl);
-            setIsReady(true);
-          }
+          if (isMounted) { setMediaSrc(finalMediaUrl); setIsReady(true); }
         } else if (item.fileType === 'video') {
-          // For video, we just signal that we're ready to render the player,
-          // which will then handle its own source loading.
           if (isMounted) setIsReady(true);
         }
       } catch (err) {
@@ -155,190 +172,215 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
         if (isMounted) setError(true);
       }
     };
-
     loadMedia();
     return cleanup;
   }, [item.uid, item.url, item.thumbnailUrl, item.fileType]);
 
-  // Effect to handle video playback *after* the video element is mounted
   useEffect(() => {
     const videoElement = videoRef.current;
-    if (!isReady || item.fileType !== 'video' || !videoElement) {
-      return;
-    }
+    if (!isReady || item.fileType !== 'video' || !videoElement) return;
 
     let isCancelled = false;
     let objectUrl: string | null = null;
     let hlsInstance: any | null = null;
-
     const handleCanPlay = () => {
       if (!isCancelled) {
         const playPromise = videoElement.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(err => {
-            if (err.name !== 'AbortError') {
-              console.warn("Video autoplay was prevented.", err);
-            }
-          });
-        }
+        if (playPromise !== undefined) { playPromise.catch(err => {
+            if (err.name !== 'AbortError') console.warn("Video autoplay prevented.", err);
+        });}
       }
     };
-
     videoElement.addEventListener('canplay', handleCanPlay);
-
     const cleanup = () => {
       isCancelled = true;
       videoElement.removeEventListener('canplay', handleCanPlay);
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       if (hlsInstance) hlsInstance.destroy();
     };
-
     const setupVideo = async () => {
       try {
         if (item.hlsPlaybackUrl && typeof Hls !== 'undefined' && Hls.isSupported()) {
-          hlsInstance = new Hls({
-            xhrSetup: (xhr: XMLHttpRequest) => {
+          hlsInstance = new Hls({ xhrSetup: (xhr: XMLHttpRequest) => {
               const token = localStorage.getItem(STORAGE_KEY);
-              if (token) {
-                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-              }
-            }
-          });
+              if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          }});
           hlsInstance.loadSource(item.hlsPlaybackUrl);
           hlsInstance.attachMedia(videoElement);
-          hlsInstance.on('hlsError', (event: any, data: any) => {
+          hlsInstance.on('hlsError', (_: any, data: any) => {
             console.error('HLS Error:', data);
-            if (data.fatal && !isCancelled) {
-                setError(true);
-            }
+            if (data.fatal && !isCancelled) setError(true);
           });
         } else if (item.url) {
           objectUrl = await fetchAuthenticatedBlobUrl(item.url);
-          if (!isCancelled) {
-            videoElement.src = objectUrl;
-          }
+          if (!isCancelled) videoElement.src = objectUrl;
         }
       } catch (err) {
         console.error("Failed to setup video:", err);
         if (!isCancelled) setError(true);
       }
     };
-
     setupVideo();
     return cleanup;
   }, [isReady, item.uid, item.hlsPlaybackUrl, item.url, item.fileType]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      } else if (event.key === 'ArrowLeft') {
-        onNavigate('prev');
-      } else if (event.key === 'ArrowRight') {
-        onNavigate('next');
+  const handleTouchStart = (e: React.TouchEvent) => {
+      interactionRef.current = {
+          startX: e.touches[0].clientX,
+          startY: e.touches[0].clientY,
+          currentX: e.touches[0].clientX,
+          currentY: e.touches[0].clientY,
+          startTime: Date.now(),
+          isDragging: true,
+      };
+      setDynamicStyle({ ...dynamicStyle, transition: 'none' });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+      if (!interactionRef.current.isDragging) return;
+      
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      const { startX, startY } = interactionRef.current;
+      const deltaX = currentX - startX;
+      const deltaY = currentY - startY;
+      
+      interactionRef.current.currentX = currentX;
+      interactionRef.current.currentY = currentY;
+
+      // Prioritize vertical pull to dismiss
+      if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0) {
+          const pullRatio = Math.min(1, deltaY / (window.innerHeight / 2));
+          setDynamicStyle({
+              transform: `translateY(${deltaY}px)`,
+              backgroundColor: `rgba(15, 23, 42, ${0.9 * (1 - pullRatio)})`,
+              transition: 'none',
+          });
+      } else {
+          const pullRatio = Math.min(1, Math.abs(deltaX) / window.innerWidth);
+          setDynamicStyle({
+              transform: `translateX(${deltaX}px)`,
+              backgroundColor: `rgba(15, 23, 42, ${0.9 * (1 - pullRatio)})`,
+              transition: 'none',
+          });
       }
-    };
+  };
+  
+  const handleTouchEnd = () => {
+      if (!interactionRef.current.isDragging) return;
+      const { startX, startY, startTime, currentX, currentY } = interactionRef.current;
+      const deltaX = currentX - startX;
+      const deltaY = currentY - startY;
+      const duration = Date.now() - startTime;
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [onClose, onNavigate]);
+      interactionRef.current.isDragging = false;
 
-  const formattedDate = item.mediaCreatedAt
-    ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-    : '未知日期';
+      // Check for tap
+      if (Math.abs(deltaX) < TAP_MAX_DELTA && Math.abs(deltaY) < TAP_MAX_DELTA && duration < TAP_MAX_DURATION) {
+          setUiVisible(v => !v);
+          if (showDetails) setShowDetails(false);
+          setDynamicStyle({});
+          return;
+      }
+      
+      const isVerticalSwipe = Math.abs(deltaY) > Math.abs(deltaX);
+
+      if (isVerticalSwipe && deltaY > PULL_TO_DISMISS_THRESHOLD) { // Pull to dismiss
+          setDynamicStyle({
+              transform: `translateY(100vh)`,
+              backgroundColor: 'rgba(15, 23, 42, 0)',
+              transition: 'transform 0.3s ease-out, background-color 0.3s ease-out',
+          });
+          setTimeout(onClose, 300);
+      } else if (!isVerticalSwipe && deltaX < -SWIPE_THRESHOLD) { // Swipe left for next
+          setDynamicStyle({
+              transform: `translateX(-100vw)`,
+              backgroundColor: 'rgba(15, 23, 42, 0)',
+              transition: 'transform 0.3s ease-out, background-color 0.3s ease-out',
+          });
+          setTimeout(() => {
+              handleNavigate('next');
+              setDynamicStyle({});
+          }, 300);
+      } else if (!isVerticalSwipe && deltaX > SWIPE_THRESHOLD) { // Swipe right for prev
+          setDynamicStyle({
+              transform: `translateX(100vw)`,
+              backgroundColor: 'rgba(15, 23, 42, 0)',
+              transition: 'transform 0.3s ease-out, background-color 0.3s ease-out',
+          });
+          setTimeout(() => {
+              handleNavigate('prev');
+              setDynamicStyle({});
+          }, 300);
+      } else { // Snap back
+          setDynamicStyle({
+              transform: 'translate(0, 0)',
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              transition: 'transform 0.3s ease-out, background-color 0.3s ease-out',
+          });
+          setTimeout(() => setDynamicStyle({}), 300);
+      }
+  };
+
+  const formattedDate = item.mediaCreatedAt ? new Date(item.mediaCreatedAt.replace(' ', 'T')).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '未知日期';
 
   return (
     <div 
-      ref={modalRef}
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fade-in"
-      onClick={(e) => { if(e.target === modalRef.current) onClose() }}
+      style={dynamicStyle}
+      className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center touch-none"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       role="dialog"
       aria-modal="true"
       aria-label={item.fileName}
     >
-        <button 
-            onClick={onClose} 
-            className="absolute top-2 right-2 sm:top-4 sm:right-4 text-slate-300/70 hover:text-slate-100 transition-colors z-[60]"
-            aria-label="关闭"
-        >
-            <CloseIcon className="w-8 h-8" />
-        </button>
+        <div className={`absolute top-0 right-0 p-2 sm:p-4 z-[60] transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <button onClick={onClose} className="text-slate-300/70 hover:text-slate-100 transition-colors" aria-label="关闭">
+              <CloseIcon className="w-8 h-8" />
+          </button>
+        </div>
         
-        <button
-          onClick={() => onNavigate('prev')}
-          className="absolute left-1 top-1/2 -translate-y-1/2 p-2 text-slate-300/70 hover:text-slate-100 hover:bg-black/20 rounded-full transition-all z-[60]"
-          aria-label="上一个"
-        >
-          <ChevronLeftIcon className="w-8 h-8" />
-        </button>
+        <div className={`absolute left-1 top-1/2 -translate-y-1/2 z-[60] transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <button onClick={() => handleNavigate('prev')} className="hidden md:block p-2 text-slate-300/70 hover:text-slate-100 hover:bg-black/20 rounded-full transition-all" aria-label="上一个">
+            <ChevronLeftIcon className="w-8 h-8" />
+          </button>
+        </div>
 
-        <button
-          onClick={() => onNavigate('next')}
-          className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-300/70 hover:text-slate-100 hover:bg-black/20 rounded-full transition-all z-[60]"
-          aria-label="下一个"
-        >
-          <ChevronRightIcon className="w-8 h-8" />
-        </button>
+        <div className={`absolute right-1 top-1/2 -translate-y-1/2 z-[60] transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <button onClick={() => handleNavigate('next')} className="hidden md:block p-2 text-slate-300/70 hover:text-slate-100 hover:bg-black/20 rounded-full transition-all" aria-label="下一个">
+            <ChevronRightIcon className="w-8 h-8" />
+          </button>
+        </div>
         
         <div className="flex flex-col md:flex-row w-full h-full p-2 sm:p-4 md:p-8 gap-4">
             <div className="flex-1 flex items-center justify-center relative min-h-0">
                 {error ? (
-                    <div className="flex items-center justify-center h-full w-full bg-black/10 rounded-lg">
-                        <p className="text-slate-500">媒体加载失败</p>
-                    </div>
+                    <div className="flex items-center justify-center h-full w-full bg-black/10 rounded-lg"> <p className="text-slate-500">媒体加载失败</p> </div>
                 ) : !isReady ? (
                     <div className="relative w-full h-full flex items-center justify-center">
-                        {placeholderSrc && (
-                            <img src={placeholderSrc} alt="正在加载..." className="max-w-full max-h-full object-contain blur-sm brightness-75" />
-                        )}
+                        {placeholderSrc && <img src={placeholderSrc} alt="正在加载..." className="max-w-full max-h-full object-contain blur-sm brightness-75" />}
                         <div className="absolute text-slate-200 bg-black/30 px-4 py-2 rounded-lg font-semibold">加载中...</div>
                     </div>
                 ) : (
-                  <>
-                    {item.fileType === 'image' && mediaSrc && (
-                        <img 
-                            src={mediaSrc} 
-                            alt={item.fileName} 
-                            className="max-w-full max-h-full object-contain animate-fade-in"
-                        />
-                    )}
-                    {item.fileType === 'video' && (
-                        <video 
-                            key={item.uid}
-                            ref={videoRef}
-                            controls
-                            className="max-w-full max-h-full object-contain animate-fade-in"
-                        >
-                            您的浏览器不支持播放该视频。
-                        </video>
-                    )}
-                  </>
+                  <div className={`${animationClass} w-full h-full flex items-center justify-center`}>
+                    {item.fileType === 'image' && mediaSrc && <img src={mediaSrc} alt={item.fileName} className="max-w-full max-h-full object-contain" />}
+                    {item.fileType === 'video' && <video key={item.uid} ref={videoRef} controls className="max-w-full max-h-full object-contain">您的浏览器不支持播放该视频。</video>}
+                  </div>
                 )}
                 
-                {/* --- BOTTOM OVERLAY --- */}
                 {isReady && !error && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 sm:p-6 text-white animate-fade-in">
+                  <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 sm:p-6 text-white transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                     <div className="flex justify-between items-end gap-4">
-                      {/* Left side: Info */}
                       <div className="min-w-0">
                           <h2 className="font-bold text-lg text-slate-100 truncate">{item.aiTitle || item.fileName}</h2>
                           <p className="text-sm text-slate-300">{formattedDate}</p>
                           {item.aiTags && item.aiTags.length > 0 && (
                               <div className="flex flex-wrap gap-1.5 mt-2">
-                                  {item.aiTags.slice(0, 5).map(tag => (
-                                      <span key={tag} className="bg-white/10 text-xs px-2 py-0.5 rounded-full">{tag}</span>
-                                  ))}
+                                  {item.aiTags.slice(0, 5).map(tag => ( <span key={tag} className="bg-white/10 text-xs px-2 py-0.5 rounded-full">{tag}</span> ))}
                               </div>
                           )}
                       </div>
-
-                      {/* Right side: Actions */}
                       <div className="flex items-center flex-shrink-0 gap-4 sm:gap-5">
                           <button onClick={() => onToggleFavorite(item.uid)} className="flex flex-col items-center text-slate-200 hover:text-white transition-colors text-center" aria-label={item.isFavorite ? '取消收藏' : '收藏'}>
                               {item.isFavorite ? <HeartSolidIcon className="w-6 h-6 text-red-500" /> : <HeartIcon className="w-6 h-6" />}
@@ -357,7 +399,6 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
                   </div>
                 )}
             </div>
-            {/* --- DESKTOP SIDEBAR --- */}
             {showDetails && (
               <aside className="hidden md:flex w-full md:w-[380px] lg:w-[420px] flex-shrink-0 bg-slate-900/80 backdrop-blur-xl rounded-lg text-slate-200 p-4 md:p-6 flex-col overflow-y-auto animate-fade-in">
                   <DetailsPanelContent item={item} />
@@ -365,20 +406,9 @@ const Modal: React.FC<ModalProps> = ({ item, onClose, onToggleFavorite, onNaviga
             )}
         </div>
         
-        {/* --- MOBILE DETAILS BOTTOM SHEET --- */}
         {showDetails && (
-            <div 
-                className="absolute inset-0 bg-black/40 md:hidden animate-fade-in"
-                onClick={() => setShowDetails(false)}
-                aria-hidden="true"
-            >
-                <aside
-                    onClick={e => e.stopPropagation()}
-                    className="absolute bottom-0 left-0 right-0 w-full max-h-[60vh] bg-slate-900 rounded-t-xl text-slate-200 p-4 flex flex-col overflow-y-auto animate-slide-up"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="详细信息"
-                >
+            <div className="absolute inset-0 bg-black/40 md:hidden animate-fade-in" onClick={() => setShowDetails(false)} aria-hidden="true">
+                <aside onClick={e => e.stopPropagation()} className="absolute bottom-0 left-0 right-0 w-full max-h-[60vh] bg-slate-900 rounded-t-xl text-slate-200 p-4 flex flex-col overflow-y-auto animate-slide-up" role="dialog" aria-modal="true" aria-label="详细信息">
                     <DetailsPanelContent item={item} />
                 </aside>
             </div>
