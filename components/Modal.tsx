@@ -1,9 +1,10 @@
+// Fix: Corrected the React import statement by removing the invalid 'a as React,' part.
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { MediaItem, ImageMetadata, VideoMetadata } from '../types';
 import {
   CloseIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
   HeartIcon,
   HeartSolidIcon,
   DownloadIcon,
@@ -17,9 +18,11 @@ declare const Hls: any;
 
 // Interaction thresholds
 const SWIPE_THRESHOLD = 50; // Min distance in px to trigger navigation
-const PULL_TO_DISMISS_THRESHOLD = 80;
+const DISMISS_THRESHOLD = 80; // Min horizontal distance to dismiss
 const TAP_MAX_DELTA = 10;
 const TAP_MAX_DURATION = 300;
+const HINT_STORAGE_KEY = 'jingyu-today-swipe-hint-shown';
+
 
 interface ModalProps {
   items: MediaItem[];
@@ -37,7 +40,7 @@ const getSlideStyle = (position: -1 | 0 | 1, dragOffset: number, isDragging: boo
     left: 0,
     width: '100%',
     height: '100%',
-    transform: `translateX(calc(${baseTranslate}% + ${dragOffset}px))`,
+    transform: `translateY(calc(${baseTranslate}% + ${dragOffset}px))`,
     transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1.0)',
     display: 'flex',
     alignItems: 'center',
@@ -247,9 +250,10 @@ const MediaSlide: React.FC<{ item: MediaItem; isActive: boolean; isPreloading?: 
 const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFavorite, onNavigate }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [uiVisible, setUiVisible] = useState(true);
-  const [dragOffset, setDragOffset] = useState(0);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [modalStyle, setModalStyle] = useState<React.CSSProperties>({});
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
   
   const interactionRef = useRef({
       startX: 0,
@@ -258,6 +262,7 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
       currentY: 0,
       startTime: 0,
       isGesture: false,
+      isVerticalGesture: null as boolean | null,
   });
   
   const item = items[currentIndex];
@@ -265,14 +270,31 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
   const nextItem = useMemo(() => items[currentIndex + 1], [items, currentIndex]);
 
   const handleNavigate = useCallback((direction: 'prev' | 'next') => {
+    // Hide hint if user navigates
+    if (showSwipeHint) setShowSwipeHint(false);
     onNavigate(direction);
-  }, [onNavigate]);
+  }, [onNavigate, showSwipeHint]);
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(HINT_STORAGE_KEY)) {
+        setShowSwipeHint(true);
+        const timer = setTimeout(() => {
+          setShowSwipeHint(false);
+          // Don't set the flag here, set it after the first successful swipe
+        }, 4000);
+        return () => clearTimeout(timer);
+      }
+    } catch(e) {
+      console.warn("Could not access localStorage for swipe hint.");
+    }
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
-      else if (event.key === 'ArrowLeft' && prevItem) handleNavigate('prev');
-      else if (event.key === 'ArrowRight' && nextItem) handleNavigate('next');
+      else if (event.key === 'ArrowDown' && prevItem) handleNavigate('prev');
+      else if (event.key === 'ArrowUp' && nextItem) handleNavigate('next');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -286,6 +308,7 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
           currentY: e.touches[0].clientY,
           startTime: Date.now(),
           isGesture: true,
+          isVerticalGesture: null,
       };
       setIsDragging(true);
   };
@@ -295,31 +318,35 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
       
       const currentX = e.touches[0].clientX;
       const currentY = e.touches[0].clientY;
-      const { startX, startY } = interactionRef.current;
+      const { startX, startY, isVerticalGesture } = interactionRef.current;
       const deltaX = currentX - startX;
       const deltaY = currentY - startY;
       
       interactionRef.current.currentX = currentX;
       interactionRef.current.currentY = currentY;
 
-      // Prioritize vertical pull to dismiss
-      if (!dragOffset && Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0) {
-          const pullRatio = Math.min(1, deltaY / (window.innerHeight / 2));
-          setModalStyle({
-              transform: `translateY(${deltaY}px)`,
-              backgroundColor: `rgba(15, 23, 42, ${0.9 * (1 - pullRatio)})`,
-              transition: 'none',
-          });
-      } else {
-          // If we started a vertical pull, don't allow horizontal swipe
-          if (modalStyle.transform) return;
+      if (isVerticalGesture === null) {
+        // Determine gesture direction after a small threshold
+        if (Math.abs(deltaY) > 10 || Math.abs(deltaX) > 10) {
+          interactionRef.current.isVerticalGesture = Math.abs(deltaY) > Math.abs(deltaX);
+        }
+      }
 
-          // Prevent swiping past the boundaries
-          if ((!prevItem && deltaX > 0) || (!nextItem && deltaX < 0)) {
-            setDragOffset(deltaX / 3); // Add some resistance
-          } else {
-            setDragOffset(deltaX);
-          }
+      if (interactionRef.current.isVerticalGesture === true) {
+        // Prevent swiping past boundaries
+        if ((!prevItem && deltaY > 0) || (!nextItem && deltaY < 0)) {
+            setDragOffsetY(deltaY / 3); // Resistance
+        } else {
+            setDragOffsetY(deltaY);
+        }
+      } else if (interactionRef.current.isVerticalGesture === false && deltaX > 0) {
+        // Handle horizontal swipe right to dismiss
+        const pullRatio = Math.min(1, deltaX / (window.innerWidth / 2));
+        setModalStyle({
+            transform: `translateX(${deltaX}px)`,
+            backgroundColor: `rgba(15, 23, 42, ${0.9 * (1 - pullRatio)})`,
+            transition: 'none',
+        });
       }
   };
   
@@ -327,25 +354,23 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
       if (!interactionRef.current.isGesture) return;
       setIsDragging(false);
       
-      const { startX, startY, startTime, currentX, currentY } = interactionRef.current;
+      const { startX, startY, startTime, currentX, currentY, isVerticalGesture } = interactionRef.current;
       const deltaX = currentX - startX;
       const deltaY = currentY - startY;
       const duration = Date.now() - startTime;
 
-      interactionRef.current.isGesture = false;
-
-      // Handle vertical pull-to-dismiss first
-      if (modalStyle.transform) {
-          if (deltaY > PULL_TO_DISMISS_THRESHOLD) {
+      // Handle horizontal dismiss first
+      if (isVerticalGesture === false && modalStyle.transform) {
+          if (deltaX > DISMISS_THRESHOLD) {
               setModalStyle({
-                  transform: `translateY(100vh)`,
+                  transform: `translateX(100vw)`,
                   backgroundColor: 'rgba(15, 23, 42, 0)',
                   transition: 'transform 0.3s ease-out, background-color 0.3s ease-out',
               });
               setTimeout(onClose, 300);
           } else {
               setModalStyle({
-                  transform: 'translateY(0)',
+                  transform: 'translateX(0)',
                   backgroundColor: 'rgba(15, 23, 42, 0.9)',
                   transition: 'transform 0.3s ease-out, background-color 0.3s ease-out',
               });
@@ -358,18 +383,23 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
       if (Math.abs(deltaX) < TAP_MAX_DELTA && Math.abs(deltaY) < TAP_MAX_DELTA && duration < TAP_MAX_DURATION) {
           setUiVisible(v => !v);
           if (showDetails) setShowDetails(false);
-          setDragOffset(0);
+          setDragOffsetY(0);
+          interactionRef.current.isGesture = false;
           return;
       }
       
-      // Handle horizontal swipe for navigation
-      if (deltaX < -SWIPE_THRESHOLD && nextItem) {
-        handleNavigate('next');
-      } else if (deltaX > SWIPE_THRESHOLD && prevItem) {
-        handleNavigate('prev');
+      // Handle vertical swipe for navigation
+      if (isVerticalGesture) {
+          if (deltaY < -SWIPE_THRESHOLD && nextItem) {
+            handleNavigate('next');
+            try { localStorage.setItem(HINT_STORAGE_KEY, 'true'); } catch(e) {}
+          } else if (deltaY > SWIPE_THRESHOLD && prevItem) {
+            handleNavigate('prev');
+          }
       }
 
-      setDragOffset(0);
+      setDragOffsetY(0);
+      interactionRef.current.isGesture = false;
   };
   
   useEffect(() => {
@@ -401,33 +431,44 @@ const Modal: React.FC<ModalProps> = ({ items, currentIndex, onClose, onToggleFav
         </div>
         
         {/* Desktop Nav Arrows */}
-        {prevItem && <div className={`absolute left-1 top-1/2 -translate-y-1/2 z-[60] transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        {prevItem && <div className={`absolute left-1/2 -translate-x-1/2 bottom-1 z-[60] transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           <button onClick={() => handleNavigate('prev')} className="hidden md:block p-2 text-slate-300/70 hover:text-slate-100 hover:bg-black/20 rounded-full transition-all" aria-label="上一个">
-            <ChevronLeftIcon className="w-8 h-8" />
+            <ChevronDownIcon className="w-8 h-8" />
           </button>
         </div>}
 
-        {nextItem && <div className={`absolute right-1 top-1/2 -translate-y-1/2 z-[60] transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        {nextItem && <div className={`absolute left-1/2 -translate-x-1/2 top-1 z-[60] transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           <button onClick={() => handleNavigate('next')} className="hidden md:block p-2 text-slate-300/70 hover:text-slate-100 hover:bg-black/20 rounded-full transition-all" aria-label="下一个">
-            <ChevronRightIcon className="w-8 h-8" />
+            <ChevronUpIcon className="w-8 h-8" />
           </button>
         </div>}
         
         <div className="flex-1 w-full flex items-center justify-center relative min-h-0 overflow-hidden">
             {prevItem && (
-                <div style={getSlideStyle(-1, dragOffset, isDragging)}>
+                <div style={getSlideStyle(-1, dragOffsetY, isDragging)}>
                     <MediaSlide item={prevItem} isActive={false} />
                 </div>
             )}
-            <div style={getSlideStyle(0, dragOffset, isDragging)}>
+            <div style={getSlideStyle(0, dragOffsetY, isDragging)}>
                 <MediaSlide item={item} isActive={true} />
             </div>
             {nextItem && (
-                <div style={getSlideStyle(1, dragOffset, isDragging)}>
+                <div style={getSlideStyle(1, dragOffsetY, isDragging)}>
                     <MediaSlide item={nextItem} isActive={false} />
                 </div>
             )}
         </div>
+        
+        {/* Swipe Up Hint */}
+        {showSwipeHint && (
+          <div className="absolute inset-x-0 bottom-[25%] z-[70] flex flex-col items-center justify-center pointer-events-none animate-fade-in" aria-hidden="true">
+            <div className="animate-swipe-up-hint">
+              <ChevronUpIcon className="w-10 h-10 text-white/80 drop-shadow-lg" />
+            </div>
+            <p className="text-white text-lg font-semibold drop-shadow-md mt-2">向上滑动</p>
+          </div>
+        )}
+
 
         {/* Bottom UI Bar */}
         <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 sm:p-6 text-white transition-opacity duration-300 ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
